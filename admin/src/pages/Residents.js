@@ -1,161 +1,140 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import Layout from "../components/Layout";
-import PageHeader from "../components/PageHeader";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faUserPlus, faSearch, faTimes, faUserCircle, faPhone, 
+  faMapMarkerAlt, faFilter, faDownload, faEdit, faTrash 
+} from "@fortawesome/free-solid-svg-icons";
 
-const RESIDENTS = [
-  {
-    id: 12,
-    username: "jessa",
-    fullName: "jessa mae",
-    email: "jessa@gmail.com",
-    phone: "09295398202",
-    address: "mapantad",
-    joined: "2025-12-10 08:02:19",
-  },
-  {
-    id: 11,
-    username: "kaka",
-    fullName: "Olivar Reyan Ryn",
-    email: "reyanolivar19@gmail.com",
-    phone: "09652292402",
-    address: "mati city",
-    joined: "2025-12-10 07:08:52",
-  },
-  {
-    id: 10,
-    username: "reyans",
-    fullName: "Reyan Ryn P. Olivar",
-    email: "reyanolivar19@gmail.com",
-    phone: "09652292402",
-    address: "Dahican",
-    joined: "2025-12-09 20:07:10",
-  },
-  {
-    id: 9,
-    username: "irene",
-    fullName: "irene rollorata",
-    email: "irene@gmail.com",
-    phone: "09532136293",
-    address: "Mati",
-    joined: "2025-12-09 16:47:36",
-  },
-  {
-    id: 8,
-    username: "ars",
-    fullName: "ars rollorata",
-    email: "ars@gmail.com",
-    phone: "09354490650",
-    address: "Riverside",
-    joined: "2025-12-09 13:42:13",
-  },
-  {
-    id: 7,
-    username: "maxine",
-    fullName: "Maxine Manlangit",
-    email: "maxinemanlangit@gmail.com",
-    phone: "09652292402",
-    address: "Mati City Davao Oreintal",
-    joined: "2025-12-08 13:16:02",
-  },
-  {
-    id: 6,
-    username: "aime",
-    fullName: "Aime Joyce Sarita",
-    email: "aime@gmail.com",
-    phone: "09652292402",
-    address: "Mati City Davao Oreintal",
-    joined: "2025-12-06 22:56:48",
-  },
-  {
-    id: 5,
-    username: "arlene",
-    fullName: "Arlene Rollorata",
-    email: "arlen@gmail.com",
-    phone: "09652292402",
-    address: "Mati City Davao Oreintal",
-    joined: "2025-12-06 17:22:36",
-  },
-  {
-    id: 2,
-    username: "reyan",
-    fullName: "Reyan Ryn P. Olivar",
-    email: "reyan@gmail.com",
-    phone: "09652292402",
-    address: "Mati City Davao Oreintal",
-    joined: "2025-12-06 15:43:10",
-  },
-];
+const API_URL = "http://localhost:5000/api/residents";
 
 export default function Residents() {
-  const [search, setSearch] = useState("");
+  const [residents, setResidents] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentId, setCurrentId] = useState(null);
+  const [formData, setFormData] = useState({
+    fullName: "", username: "", email: "", phone: "", address: ""
+  });
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return RESIDENTS;
+  useEffect(() => {
+    fetchResidents();
+  }, []);
 
-    const lower = search.trim().toLowerCase();
-    return RESIDENTS.filter((resident) => {
-      return (
-        resident.username.toLowerCase().includes(lower) ||
-        resident.fullName.toLowerCase().includes(lower) ||
-        resident.email.toLowerCase().includes(lower)
-      );
-    });
-  }, [search]);
+  const fetchResidents = async () => {
+    try {
+      const res = await axios.get(API_URL);
+      setResidents(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (isEditing) {
+        await axios.put(`${API_URL}/${currentId}`, formData);
+      } else {
+        await axios.post(`${API_URL}/add`, formData);
+      }
+      fetchResidents();
+      setIsModalOpen(false);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Delete this resident?")) {
+      await axios.delete(`${API_URL}/${id}`);
+      fetchResidents();
+    }
+  };
+
+  const filtered = residents.filter(r => 
+    r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <Layout title="Residents" subtitle="Resident management and directory">
-      <PageHeader
-        title="Residents Management"
-        badge={`${RESIDENTS.length} Residents`}
-      />
-      <section className="filters">
-        <div className="filters__row">
-          <input
-            className="filters__search"
-            placeholder="Search residents..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={() => setSearch("")}
-          >
-            Clear Filters
+    <Layout title="Residents Directory" subtitle={`Managing ${residents.length} community members`}
+      actions={
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="button button--secondary"><FontAwesomeIcon icon={faDownload} /> Export</button>
+          <button className="button button--primary" onClick={() => { setIsEditing(false); setFormData({fullName:"", username:"", email:"", phone:"", address:""}); setIsModalOpen(true); }}>
+            <FontAwesomeIcon icon={faUserPlus} /> Add Resident
           </button>
+        </div>
+      }
+    >
+      <section className="animate-fade-in" style={{ marginBottom: '2rem' }}>
+        <div className="report-card" style={{ padding: '1rem', display: 'flex', gap: '1rem' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+            <input style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}
+              placeholder="Search residents..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
         </div>
       </section>
 
-      <section className="table-section">
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Joined</th>
+      <div className="table-wrapper animate-fade-in" style={{ overflowX: 'auto' }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Resident Profile</th>
+              <th>Contact</th>
+              <th>Address</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(r => (
+              <tr key={r._id}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#E8EFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4169E1' }}>
+                      <FontAwesomeIcon icon={faUserCircle} size="lg" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>{r.fullName}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748B' }}>@{r.username}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{r.email}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{r.phone}</div>
+                </td>
+                <td><div style={{ fontSize: '0.8125rem' }}>{r.address}</div></td>
+                <td style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                    <button className="icon-button" onClick={() => { setIsEditing(true); setCurrentId(r._id); setFormData({...r}); setIsModalOpen(true); }}><FontAwesomeIcon icon={faEdit} /></button>
+                    <button className="icon-button text-danger" onClick={() => handleDelete(r._id)}><FontAwesomeIcon icon={faTrash} /></button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.map((resident) => (
-                <tr key={resident.id}>
-                  <td>{resident.id}</td>
-                  <td>{resident.username}</td>
-                  <td>{resident.fullName}</td>
-                  <td>{resident.email}</td>
-                  <td>{resident.phone}</td>
-                  <td>{resident.address}</td>
-                  <td>{resident.joined}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
+          <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
+            <h2>{isEditing ? 'Edit Resident' : 'Add New Resident'}</h2>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+              <input name="fullName" value={formData.fullName} onChange={(e)=>setFormData({...formData, fullName: e.target.value})} placeholder="Full Name" required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <input name="username" value={formData.username} onChange={(e)=>setFormData({...formData, username: e.target.value})} placeholder="Username" required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <input name="email" type="email" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} placeholder="Email Address" required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <input name="phone" value={formData.phone} onChange={(e)=>setFormData({...formData, phone: e.target.value})} placeholder="Phone Number" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <input name="address" value={formData.address} onChange={(e)=>setFormData({...formData, address: e.target.value})} placeholder="Address" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="button button--secondary" style={{ flex: 1 }}>Cancel</button>
+                <button type="submit" className="button button--primary" style={{ flex: 1 }}>Save Resident</button>
+              </div>
+            </form>
+          </div>
         </div>
-      </section>
+      )}
     </Layout>
   );
 }

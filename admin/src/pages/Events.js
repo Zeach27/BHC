@@ -1,225 +1,196 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import Layout from "../components/Layout";
-import PageHeader from "../components/PageHeader";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faPlus, faSearch, faTimes, faCalendarAlt, faMapMarkerAlt, 
+  faClock, faTrashAlt, faEdit, faDownload, faCheckCircle
+} from "@fortawesome/free-solid-svg-icons";
 
-const EVENTS = [
-  {
-    id: 1,
-    title: "Vaccination Drive",
-    description: "m,dfna,sfn,asfas nas nm",
-    date: "2025-12-07",
-    startTime: "08:00",
-    endTime: "17:30",
-    location: "Barangay Hall",
-    capacityTotal: 100,
-    capacityTaken: 100,
-    category: "General",
-    status: "Past",
-  },
-  {
-    id: 2,
-    title: "Vaccination",
-    description: "sadascascasfasfasfasfasdfas",
-    date: "2025-12-07",
-    startTime: "08:00",
-    endTime: "15:00",
-    location: "Barangay Hall",
-    capacityTotal: 100,
-    capacityTaken: 100,
-    category: "General",
-    status: "Past",
-  },
-  {
-    id: 3,
-    title: "Vaccination day",
-    description: "dasdasfsa fsafasafs",
-    date: "2025-12-07",
-    startTime: "09:00",
-    endTime: "16:00",
-    location: "Barangay Hall",
-    capacityTotal: 100,
-    capacityTaken: 100,
-    category: "General",
-    status: "Past",
-  },
-  {
-    id: 4,
-    title: "Dental Clean",
-    description: "Clean",
-    date: "2025-12-10",
-    startTime: "02:30",
-    endTime: "03:00",
-    location: "Riverside",
-    capacityTotal: 100,
-    capacityTaken: 25,
-    category: "General",
-    status: "Today",
-  },
-];
-
-function formatTimeRange(start, end) {
-  return `${start} - ${end}`;
-}
+const API_URL = "http://localhost:5000/api/events";
 
 export default function Events() {
-  const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState("All Dates");
-  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [events, setEvents] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentEventId, setCurrentEventId] = useState(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+    capacityTotal: 0,
+    category: "Medical",
+    status: "Upcoming"
+  });
 
-  const dates = useMemo(() => {
-    const uniq = [...new Set(EVENTS.map((evt) => evt.date))];
-    return uniq.sort();
+  useEffect(() => {
+    fetchEvents();
   }, []);
 
-  const filtered = useMemo(() => {
-    return EVENTS.filter((evt) => {
-      const matchesSearch =
-        evt.title.toLowerCase().includes(search.toLowerCase()) ||
-        evt.description.toLowerCase().includes(search.toLowerCase());
+  const fetchEvents = async () => {
+    try {
+      const res = await axios.get(API_URL);
+      setEvents(res.data);
+    } catch (err) {
+      console.error("Error fetching events:", err);
+    }
+  };
 
-      const matchesDate =
-        dateFilter === "All Dates" || evt.date === dateFilter;
-      const matchesStatus =
-        statusFilter === "All Status" || evt.status === statusFilter;
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-      return matchesSearch && matchesDate && matchesStatus;
+  const openAddModal = () => {
+    setIsEditing(false);
+    setFormData({
+      title: "", description: "", date: "", startTime: "", 
+      endTime: "", location: "", capacityTotal: 0, 
+      category: "Medical", status: "Upcoming"
     });
-  }, [search, dateFilter, statusFilter]);
+    setIsModalOpen(true);
+  };
 
-  const clearFilters = () => {
-    setSearch("");
-    setDateFilter("All Dates");
-    setStatusFilter("All Status");
+  const openEditModal = (event) => {
+    setIsEditing(true);
+    setCurrentEventId(event._id);
+    setFormData({ ...event });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (isEditing) {
+        await axios.put(`${API_URL}/${currentEventId}`, formData);
+      } else {
+        await axios.post(`${API_URL}/add`, formData);
+      }
+      fetchEvents();
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Error saving event:", err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Delete this event?")) {
+      await axios.delete(`${API_URL}/${id}`);
+      fetchEvents();
+    }
+  };
+
+  const filteredEvents = events.filter(e => 
+    e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getCategoryStyles = (cat) => {
+    switch(cat) {
+      case 'Medical': return { bg: '#E0F2FE', text: '#0369A1' };
+      case 'Dental': return { bg: '#F0FDF4', text: '#15803D' };
+      default: return { bg: '#F5F3FF', text: '#6D28D9' };
+    }
   };
 
   return (
-    <Layout title="Events" subtitle="Events management and scheduling">
-      <PageHeader
-        title="Events Management"
-        badge={`${EVENTS.length} Events`}
-        primaryAction={{ label: "+ Add Event", onClick: () => {} }}
-      />
-
-      <section className="filters">
-        <div className="filters__row">
-          <input
-            className="filters__search"
-            placeholder="Search events..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="filters__select"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-          >
-            <option>All Dates</option>
-            {dates.map((date) => (
-              <option key={date} value={date}>
-                {date}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filters__select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option>All Status</option>
-            <option>Past</option>
-            <option>Today</option>
-            <option>Upcoming</option>
-          </select>
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={clearFilters}
-          >
-            Clear Filters
-          </button>
+    <Layout 
+      title="Event Management" 
+      subtitle={`Organizing ${events.length} community health programs`}
+      actions={
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="button button--secondary"><FontAwesomeIcon icon={faDownload} /> Export</button>
+          <button className="button button--primary" onClick={openAddModal}><FontAwesomeIcon icon={faPlus} /> Create Event</button>
+        </div>
+      }
+    >
+      <section className="animate-fade-in" style={{ marginBottom: '2rem' }}>
+        <div className="report-card" style={{ padding: '1rem', display: 'flex', gap: '1rem' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+            <input
+              style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none' }}
+              placeholder="Search events..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </section>
 
-      <section className="table-section">
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th />
-                <th>EVENT DETAILS</th>
-                <th>SCHEDULE</th>
-                <th>CAPACITY</th>
-                <th>CATEGORY</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
+      <div className="table-wrapper animate-fade-in" style={{ overflowX: 'auto' }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Event Details</th>
+              <th>Schedule</th>
+              <th>Location</th>
+              <th>Capacity</th>
+              <th>Status</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEvents.map(evt => (
+              <tr key={evt._id}>
+                <td>
+                  <div style={{ fontWeight: 800, color: '#1E293B' }}>{evt.title}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{evt.category}</div>
+                </td>
+                <td>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700 }}>{evt.date}</div>
+                  <div style={{ fontSize: '0.6875rem', color: '#94A3B8' }}>{evt.startTime} - {evt.endTime}</div>
+                </td>
+                <td><div style={{ fontSize: '0.8125rem' }}>{evt.location}</div></td>
+                <td><div style={{ fontSize: '0.8125rem', fontWeight: 700 }}>{evt.capacityTaken}/{evt.capacityTotal}</div></td>
+                <td><span className={`tag tag--${evt.status.toLowerCase()}`}>{evt.status}</span></td>
+                <td style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                    <button className="icon-button" onClick={() => openEditModal(evt)}><FontAwesomeIcon icon={faEdit} /></button>
+                    <button className="icon-button text-danger" onClick={() => handleDelete(evt._id)}><FontAwesomeIcon icon={faTrashAlt} /></button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.map((evt) => (
-                <tr key={evt.id}>
-                  <td>
-                    <input type="checkbox" aria-label="select event" />
-                  </td>
-                  <td>
-                    <div className="event-cell">
-                      <div className="event-cell__icon" aria-hidden="true">
-                        📅
-                      </div>
-                      <div className="event-cell__detail">
-                        <div className="event-cell__title">{evt.title}</div>
-                        <div className="event-cell__desc">{evt.description}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="event-schedule">
-                      <div className="event-schedule__date">{evt.date}</div>
-                      <div className="event-schedule__time">
-                        {formatTimeRange(evt.startTime, evt.endTime)}
-                      </div>
-                      <div className="event-schedule__location">{evt.location}</div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="capacity">
-                      <div className="capacity__label">
-                        {evt.capacityTotal} slots
-                      </div>
-                      <div className="capacity__bar">
-                        <div
-                          className="capacity__fill"
-                          style={{
-                            width: `${Math.round(
-                              (evt.capacityTaken / evt.capacityTotal) * 100
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="tag">{evt.category}</span>
-                  </td>
-                  <td>
-                    <span className={`tag tag--status tag--${evt.status.toLowerCase()}`}>
-                      {evt.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label="Delete event"
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <div className="modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', 
+          justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)'
+        }}>
+          <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
+            <h2 style={{ marginBottom: '1.5rem' }}>{isEditing ? 'Edit Event' : 'Create New Event'}</h2>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <input name="title" value={formData.title} onChange={handleInputChange} placeholder="Event Title" required className="input-field" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Description" className="input-field" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0', minHeight: '80px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <input name="date" type="date" value={formData.date} onChange={handleInputChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+                <select name="category" value={formData.category} onChange={handleInputChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <option value="Medical">Medical</option>
+                  <option value="Dental">Dental</option>
+                  <option value="Seminar">Seminar</option>
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <input name="startTime" type="time" value={formData.startTime} onChange={handleInputChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+                <input name="endTime" type="time" value={formData.endTime} onChange={handleInputChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              </div>
+              <input name="location" value={formData.location} onChange={handleInputChange} placeholder="Location" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="button button--secondary" style={{ flex: 1 }}>Cancel</button>
+                <button type="submit" className="button button--primary" style={{ flex: 1 }}>Save Event</button>
+              </div>
+            </form>
+          </div>
         </div>
-      </section>
+      )}
     </Layout>
   );
 }

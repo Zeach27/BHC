@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    await mongoose.connect("mongodb://127.0.0.1:27017/barangay_health");
-    console.log("MongoDB Connected");
+    await mongoose.connect("mongodb://127.0.0.1:27017/Chesms");
+    console.log("MongoDB Connected to 'Chesms'");
   } catch (error) {
     console.error(error);
     process.exit(1);

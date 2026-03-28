@@ -3,6 +3,12 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const patientRoutes = require("./routes/patientRoutes");
+const scheduleRoutes = require("./routes/scheduleRoutes");
+const residentRoutes = require("./routes/residentRoutes");
+const eventRoutes = require("./routes/eventRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
+const announcementRoutes = require("./routes/announcementRoutes");
+const recordRoutes = require("./routes/recordRoutes");
 
 // Initialize app (MUST come before using app)
 const app = express();
@@ -16,6 +22,12 @@ app.use(express.json());
 
 // Routes
 app.use("/api/patients", patientRoutes);
+app.use("/api/schedules", scheduleRoutes);
+app.use("/api/residents", residentRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/records", recordRoutes);
 
 // Test route
 app.get("/", (req, res) => {
