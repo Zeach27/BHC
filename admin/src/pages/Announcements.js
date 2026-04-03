@@ -3,10 +3,10 @@ import axios from "axios";
 import Layout from "../components/Layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-  faPlus, faBullhorn, faTrash, faExclamationTriangle, faInfoCircle, 
-  faSearch, faCalendarAlt, faTimes, faMapMarkerAlt, faClock, 
-  faLayerGroup, faThumbtack, faUsers, faBaby, faPersonPregnant, faUserShield,
-  faPrint, faChartPie, faEdit, faBroadcastTower, faSync, faCheckCircle, faChevronRight,
+  faTrash, 
+  faSearch, faTimes, faMapMarkerAlt, faClock, 
+  faThumbtack, faUsers, faBaby, faPersonPregnant, faUserShield,
+  faEdit, faBroadcastTower, faSync, faCheckCircle,
   faHourglassHalf, faBolt, faSatelliteDish
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -165,7 +165,7 @@ export default function Announcements() {
             </button>
             <button className="button button--primary" onClick={() => { resetForm(); setIsModalOpen(true); }}>
                 <FontAwesomeIcon icon={faBroadcastTower} /> 
-                LAUNCH NEW BROADCAST
+                New Announcement
             </button>
         </div>
       }
@@ -296,7 +296,7 @@ export default function Announcements() {
 
       {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, backdropFilter: 'blur(10px)' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
           <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem', borderRadius: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{isEditing ? 'Modify Intel' : 'Launch New Broadcast'}</h2>

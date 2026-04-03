@@ -147,8 +147,8 @@ export default function Records() {
               <button className="icon-button" onClick={fetchData} title="Sync Database" style={{ background: 'white', border: '1px solid #E2E8F0' }}>
                   <FontAwesomeIcon icon={faSync} spin={loading} />
               </button>
-              <button className="button button--primary" onClick={() => { setSelectedPatient(null); resetForm(); setIsModalOpen(true); }} style={{ height: '46px', padding: '0 2rem', borderRadius: '14px', fontSize: '0.875rem', fontWeight: 800 }}>
-                  <FontAwesomeIcon icon={faFileMedical} style={{ marginRight: '8px' }} /> NEW CLINICAL ENTRY
+              <button className="button button--primary" onClick={() => { setSelectedPatient(null); resetForm(); setIsModalOpen(true); }}>
+                  <FontAwesomeIcon icon={faFileMedical} style={{ marginRight: '8px' }} /> New Clinical Record
               </button>
           </div>
       }
@@ -267,7 +267,7 @@ export default function Records() {
 
       {/* MASTER PATIENT CLINICAL FILE MODAL */}
       {selectedPatient && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, backdropFilter: 'blur(12px)' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
           <div className="report-card animate-fade-in" style={{ width: '95%', maxWidth: '1200px', height: '85vh', padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', borderRadius: '24px' }}>
             
             {/* Header */}
@@ -286,7 +286,7 @@ export default function Records() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <button className="button button--primary" onClick={() => { resetForm(); setIsModalOpen(true); }} style={{ borderRadius: '12px', background: '#4169E1', border: 'none', padding: '0.75rem 1.5rem', fontWeight: 800 }}>
+                    <button className="button button--primary" onClick={() => { resetForm(); setIsModalOpen(true); }} style={{ background: '#4169E1' }}>
                         <FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} /> APPEND RECORD
                     </button>
                     <button onClick={() => setSelectedPatient(null)} style={{ border: 'none', background: 'rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', width: '44px', height: '44px', borderRadius: '12px', transition: 'all 0.2s' }}><FontAwesomeIcon icon={faTimes} size="lg" /></button>
@@ -370,7 +370,7 @@ export default function Records() {
 
       {/* CREATE/EDIT RECORD MODAL */}
       {isModalOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000, backdropFilter: 'blur(8px)' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000 }}>
           <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '650px', padding: '2.5rem', maxHeight: '90vh', overflowY: 'auto', borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, color: '#0F172A' }}>{isEditing ? 'Modify Clinical Entry' : 'New Medical Record'}</h2>
@@ -436,8 +436,8 @@ export default function Records() {
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="button button--secondary" style={{ flex: 1, padding: '1.125rem', borderRadius: '16px', fontWeight: 800 }}>CANCEL</button>
-                <button type="submit" className="button button--primary" style={{ flex: 2, padding: '1.125rem', borderRadius: '16px', fontWeight: 900, fontSize: '1rem', background: '#4169E1', boxShadow: '0 10px 15px -3px rgba(65, 105, 225, 0.3)' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="button button--secondary" style={{ flex: 1 }}>CANCEL</button>
+                <button type="submit" className="button button--primary" style={{ flex: 2, background: '#4169E1', boxShadow: '0 10px 15px -3px rgba(65, 105, 225, 0.3)' }}>
                   {isEditing ? 'UPDATE RECORD' : 'SAVE CLINICAL ENTRY'}
                 </button>
               </div>

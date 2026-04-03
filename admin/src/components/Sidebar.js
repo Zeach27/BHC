@@ -4,30 +4,46 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faHome, 
   faCalendarAlt, 
-  faUsers, 
   faClipboardCheck, 
   faBullhorn, 
   faChartBar, 
   faFileMedical,
-  faSignOutAlt,
   faUserFriends,
-  faHospitalUser
+  faHospitalUser,
+  faUserTie,
+  faSignOutAlt,
+  faMapMarkedAlt,
+  faMobileAlt
 } from "@fortawesome/free-solid-svg-icons";
 
-function Sidebar() {
+function Sidebar({ isOpen }) {
   const navItems = [
-    { path: "/", icon: faHome, label: "Dashboard" },
+    { path: "/", icon: faHome, label: "Home" },
     { path: "/patients", icon: faHospitalUser, label: "Patients" },
-    { path: "/appointments", icon: faCalendarAlt, label: "Schedules" },
-    { path: "/records", icon: faFileMedical, label: "Medical Records" },
-    { path: "/residents", icon: faUserFriends, label: "Residents" },
-    { path: "/announcements", icon: faBullhorn, label: "Community Hub" },
+    { path: "/appointments", icon: faCalendarAlt, label: "Schedule" },
+    { path: "/census", icon: faMapMarkedAlt, label: "Community Census" },
+    { path: "/residents", icon: faMobileAlt, label: "App Registrations" },
+    { path: "/records", icon: faFileMedical, label: "Medical History" },
+    { path: "/staff", icon: faUserTie, label: "Staff Management" },
+    { path: "/announcements", icon: faBullhorn, label: "News & Alerts" },
     { path: "/attendance", icon: faClipboardCheck, label: "Attendance" },
-    { path: "/reports", icon: faChartBar, label: "Reports" },
+    { path: "/reports", icon: faChartBar, label: "Clinic Reports" },
   ];
 
+  const adminName = localStorage.getItem("adminName") || "Super Administrator";
+  const adminId = localStorage.getItem("adminId") || "BHW-SYSTEM-SA";
+
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to logout?")) {
+      localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("adminId");
+      localStorage.removeItem("adminName");
+      window.location.href = "/login";
+    }
+  };
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? "open" : ""}`}>
       <div className="sidebar__brand">
         <div className="sidebar__brand-icon-wrapper">
           <img src="/chems-logo.png" alt="Logo" style={{ width: '28px', height: '28px' }} />

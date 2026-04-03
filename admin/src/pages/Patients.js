@@ -128,7 +128,7 @@ function Patients() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="button button--secondary" style={{ borderRadius: '12px' }}>
+          <button className="button button--secondary">
             <FontAwesomeIcon icon={faFilter} />
             Filters
           </button>
@@ -222,12 +222,12 @@ function Patients() {
           left: 0,
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(15, 23, 42, 0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 100,
-          backdropFilter: 'blur(4px)'
+          zIndex: 3000
+
         }}>
           <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem', position: 'relative' }}>
             <button 
@@ -313,14 +313,14 @@ function Patients() {
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
                   className="button button--secondary" 
-                  style={{ flex: 1, padding: '0.75rem' }}
+                  style={{ flex: 1 }}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   className="button button--primary" 
-                  style={{ flex: 1, padding: '0.75rem' }}
+                  style={{ flex: 1 }}
                 >
                   {isEditing ? "Update Patient" : "Register Patient"}
                 </button>

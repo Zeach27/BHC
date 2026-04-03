@@ -9,6 +9,7 @@ const eventRoutes = require("./routes/eventRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
 const recordRoutes = require("./routes/recordRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 // Initialize app (MUST come before using app)
 const app = express();
@@ -20,6 +21,12 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
 // Routes
 app.use("/api/patients", patientRoutes);
 app.use("/api/schedules", scheduleRoutes);
@@ -28,6 +35,7 @@ app.use("/api/events", eventRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/records", recordRoutes);
+app.use("/api/users", userRoutes);
 
 // Test route
 app.get("/", (req, res) => {

@@ -11,6 +11,10 @@ import Announcements from "./pages/Announcements";
 import Reports from "./pages/Reports";
 import Records from "./pages/Records";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
+import Staff from "./pages/Staff";
+import Census from "./pages/Census";
+import Notifications from "./pages/Notifications";
 
 // Professional Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -29,12 +33,16 @@ function App() {
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
         <Route path="/residents" element={<ProtectedRoute><Residents /></ProtectedRoute>} />
+        <Route path="/census" element={<ProtectedRoute><Census /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
         <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
         <Route path="/records" element={<ProtectedRoute><Records /></ProtectedRoute>} />
+        <Route path="/staff" element={<ProtectedRoute><Staff /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
         <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
         {/* Fallback to Dashboard/Login */}
         <Route path="*" element={<Navigate to="/" replace />} />

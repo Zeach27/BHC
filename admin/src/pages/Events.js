@@ -3,8 +3,7 @@ import axios from "axios";
 import Layout from "../components/Layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-  faPlus, faSearch, faTimes, faCalendarAlt, faMapMarkerAlt, 
-  faClock, faTrashAlt, faEdit, faDownload, faCheckCircle
+  faPlus, faSearch, faTrashAlt, faEdit, faDownload
 } from "@fortawesome/free-solid-svg-icons";
 
 const API_URL = "http://localhost:5000/api/events";
@@ -88,14 +87,6 @@ export default function Events() {
     e.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getCategoryStyles = (cat) => {
-    switch(cat) {
-      case 'Medical': return { bg: '#E0F2FE', text: '#0369A1' };
-      case 'Dental': return { bg: '#F0FDF4', text: '#15803D' };
-      default: return { bg: '#F5F3FF', text: '#6D28D9' };
-    }
-  };
-
   return (
     <Layout 
       title="Event Management" 
@@ -162,8 +153,8 @@ export default function Events() {
       {isModalOpen && (
         <div className="modal-overlay" style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', 
-          justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)'
+          backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', 
+          justifyContent: 'center', zIndex: 1000
         }}>
           <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
             <h2 style={{ marginBottom: '1.5rem' }}>{isEditing ? 'Edit Event' : 'Create New Event'}</h2>

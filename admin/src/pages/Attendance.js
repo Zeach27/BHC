@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import Layout from "../components/Layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-  faCheckCircle, faSearch, faPlus, faUser, faCalendarDay, 
-  faQrcode, faCamera, faTimes, faUserCheck, faIdCard,
-  faMapMarkerAlt, faHistory, faSync, faVideo, faExchangeAlt
+  faSearch, faPlus, faUser,
+  faQrcode, faTimes, faUserCheck, faIdCard,
+  faHistory, faSync, faVideo,
+  faCalendarCheck, faClock
 } from "@fortawesome/free-solid-svg-icons";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -17,7 +18,6 @@ export default function Attendance() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [scannedPatient, setScannedPatient] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -26,24 +26,61 @@ export default function Attendance() {
     remarks: ""
   });
 
+  const fetchAttendance = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/attendance");
+      setAttendance(res.data);
+    } catch (err) { console.error(err); }
+  }, []);
+
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const [pRes, eRes] = await Promise.all([
+        axios.get("http://localhost:5000/api/patients"),
+        axios.get("http://localhost:5000/api/events")
+      ]);
+      setPatients(pRes.data);
+      setEvents(eRes.data);
+    } catch (err) { console.error(err); }
+  }, []);
+
   useEffect(() => {
     fetchAttendance();
     fetchInitialData();
-  }, []);
+  }, [fetchAttendance, fetchInitialData]);
 
-  // Professional Scanner Lifecycle
+  const onScanSuccess = useCallback(async (decodedText) => {
+    try {
+      if (scannerInstance) scannerInstance.pause();
+      
+      const res = await axios.get(`http://localhost:5000/api/patients`);
+      const patient = res.data.find(p => p._id === decodedText || p._id.slice(-6).toUpperCase() === decodedText.toUpperCase());
+      
+      if (patient) {
+        setScannedPatient(patient);
+        setFormData(prev => ({ ...prev, patient: patient._id }));
+      } else {
+        alert("Not Found: Patient ID not recognized.");
+        if (scannerInstance) scannerInstance.resume();
+      }
+    } catch (err) { 
+        console.error(err); 
+        if (scannerInstance) scannerInstance.resume();
+    }
+  }, [scannerInstance]);
+
   useEffect(() => {
     if (isScannerOpen && !scannerInstance) {
       const html5QrCode = new Html5Qrcode("reader");
       setScannerInstance(html5QrCode);
       
-      const qrConfig = { fps: 15, qrbox: { width: 200, height: 200 } };
+      const qrConfig = { fps: 15, qrbox: { width: 220, height: 220 } };
       
       html5QrCode.start(
         { facingMode: "environment" }, 
         qrConfig,
         onScanSuccess
-      ).catch(err => console.error("Scanner start error:", err));
+      ).catch(err => console.error("Scanner error:", err));
     }
 
     return () => {
@@ -54,47 +91,7 @@ export default function Attendance() {
         }).catch(err => console.log("Stop error", err));
       }
     };
-  }, [isScannerOpen]);
-
-  const onScanSuccess = async (decodedText) => {
-    try {
-      setLoading(true);
-      // Visual feedback: Stop scanner temporarily on success
-      if (scannerInstance) scannerInstance.pause();
-      
-      const res = await axios.get(`http://localhost:5000/api/patients`);
-      const patient = res.data.find(p => p._id === decodedText || p._id.slice(-6).toUpperCase() === decodedText.toUpperCase());
-      
-      if (patient) {
-        setScannedPatient(patient);
-        setFormData(prev => ({ ...prev, patient: patient._id }));
-      } else {
-        alert("Verification Failed: Unknown Patient ID");
-        if (scannerInstance) scannerInstance.resume();
-      }
-    } catch (err) { 
-        console.error(err); 
-        if (scannerInstance) scannerInstance.resume();
-    } finally { setLoading(false); }
-  };
-
-  const fetchAttendance = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/attendance");
-      setAttendance(res.data);
-    } catch (err) { console.error(err); }
-  };
-
-  const fetchInitialData = async () => {
-    try {
-      const [pRes, eRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/patients"),
-        axios.get("http://localhost:5000/api/events")
-      ]);
-      setPatients(pRes.data);
-      setEvents(eRes.data);
-    } catch (err) { console.error(err); }
-  };
+  }, [isScannerOpen, scannerInstance, onScanSuccess]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,215 +110,241 @@ export default function Attendance() {
     a.event?.title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const stats = [
+    { label: "Scanned Today", value: attendance.filter(a => new Date(a.date).toDateString() === new Date().toDateString()).length, icon: faCalendarCheck, color: "#10B981" },
+    { label: "Total Visits", value: attendance.length, icon: faHistory, color: "#4169E1" }
+  ];
+
+  const headerActions = (
+    <div className="responsive-actions">
+        <button className="button button--secondary" onClick={() => setIsScannerOpen(true)} style={{ background: '#0F172A', color: 'white', border: 'none' }}>
+            <FontAwesomeIcon icon={faQrcode} /> OPEN SCANNER
+        </button>
+        <button className="button button--primary" onClick={() => { setScannedPatient(null); setIsModalOpen(true); }}>
+            <FontAwesomeIcon icon={faPlus} /> Type Name
+        </button>
+    </div>
+  );
+
   return (
-    <Layout title="Attendance Station" subtitle="Next-gen clinical verification hub"
-      actions={
-        <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="button button--secondary" onClick={() => setIsScannerOpen(true)} style={{ background: '#0F172A', color: 'white', border: 'none' }}>
-                <FontAwesomeIcon icon={faQrcode} /> START SCANNER
-            </button>
-            <button className="button button--primary" onClick={() => { setScannedPatient(null); setIsModalOpen(true); }}>
-                <FontAwesomeIcon icon={faPlus} /> MANUAL ENTRY
-            </button>
-        </div>
-      }
+    <Layout 
+      title="Attendance" 
+      subtitle="Check who is present for health events using QR codes"
+      actions={headerActions}
     >
-      
-      {/* PROFESSIONAL SCANNER ENGINE UI */}
-      {isScannerOpen && (
-          <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem', alignItems: 'stretch' }}>
-                  
-                  {/* High-End Scanner Console */}
-                  <div style={{ background: '#0F172A', borderRadius: '24px', padding: '1.25rem', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', color: 'white' }}>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 900, letterSpacing: '0.1em', color: '#4169E1' }}>
-                              <FontAwesomeIcon icon={faVideo} className="status-pulse" style={{ marginRight: '8px' }} /> 
-                              ENGINE: ACTIVE
-                          </span>
-                          <button onClick={() => { setIsScannerOpen(false); setScannedPatient(null); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', width: '24px', height: '24px', borderRadius: '50%' }}><FontAwesomeIcon icon={faTimes} size="xs" /></button>
-                      </div>
-
-                      {/* Scanner Frame */}
-                      <div style={{ position: 'relative', width: '100%', height: '220px', borderRadius: '16px', overflow: 'hidden', border: '2px solid #334155' }}>
-                          <div id="reader" style={{ width: '100%', height: '100%' }}></div>
-                          
-                          {/* Animated Scanning Laser */}
-                          {!scannedPatient && (
-                              <div style={{ 
-                                  position: 'absolute', top: 0, left: 0, width: '100%', height: '2px', 
-                                  background: 'linear-gradient(to right, transparent, #4169E1, transparent)',
-                                  boxShadow: '0 0 15px #4169E1',
-                                  zIndex: 10,
-                                  animation: 'scan-move 2s infinite ease-in-out'
-                              }}></div>
-                          )}
-
-                          {/* Viewfinder Corners */}
-                          <div style={{ position: 'absolute', top: '20px', left: '20px', width: '20px', height: '20px', borderTop: '3px solid #4169E1', borderLeft: '3px solid #4169E1', zIndex: 11 }}></div>
-                          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '20px', height: '20px', borderTop: '3px solid #4169E1', borderRight: '3px solid #4169E1', zIndex: 11 }}></div>
-                          <div style={{ position: 'absolute', bottom: '20px', left: '20px', width: '20px', height: '20px', borderBottom: '3px solid #4169E1', borderLeft: '3px solid #4169E1', zIndex: 11 }}></div>
-                          <div style={{ position: 'absolute', bottom: '20px', right: '20px', width: '20px', height: '20px', borderBottom: '3px solid #4169E1', borderRight: '3px solid #4169E1', zIndex: 11 }}></div>
-                      </div>
-
-                      <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-                          <button className="icon-button" style={{ color: 'white', background: 'rgba(255,255,255,0.05)', borderRadius: '10px' }} title="Switch Camera">
-                              <FontAwesomeIcon icon={faExchangeAlt} />
-                          </button>
-                          <p style={{ fontSize: '0.6rem', color: '#64748B', marginTop: '0.75rem', fontWeight: 700 }}>VERIFYING DIGITAL CREDENTIALS...</p>
-                      </div>
-                  </div>
-
-                  {/* Recognition Panel */}
-                  <div style={{ flex: 1 }}>
-                      {scannedPatient ? (
-                          <div className="report-card animate-fade-in" style={{ height: '100%', border: '2px solid #10B981', padding: '1.5rem', display: 'flex', flexDirection: 'column', background: 'white' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                      <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#10B981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}>
-                                          <FontAwesomeIcon icon={faUserCheck} />
-                                      </div>
-                                      <div>
-                                          <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0F172A' }}>{scannedPatient.name}</h4>
-                                          <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#10B981' }}>IDENTITY VERIFIED</span>
-                                      </div>
-                                  </div>
-                                  <button className="icon-button" onClick={() => { setScannedPatient(null); if(scannerInstance) scannerInstance.resume(); }} style={{ background: '#F1F5F9' }}><FontAwesomeIcon icon={faSync} /></button>
-                              </div>
-
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                  <div style={{ padding: '0.75rem', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94A3B8', display: 'block' }}>DEMOGRAPHICS</span>
-                                      <span style={{ fontWeight: 800, fontSize: '0.8125rem' }}>{scannedPatient.age}Y • {scannedPatient.gender}</span>
-                                  </div>
-                                  <div style={{ padding: '0.75rem', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94A3B8', display: 'block' }}>SYSTEM ID</span>
-                                      <span style={{ fontWeight: 800, fontSize: '0.8125rem' }}>{scannedPatient._id.slice(-8).toUpperCase()}</span>
-                                  </div>
-                                  <div style={{ padding: '0.75rem', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94A3B8', display: 'block' }}>CONTACT</span>
-                                      <span style={{ fontWeight: 800, fontSize: '0.8125rem' }}>{scannedPatient.contact}</span>
-                                  </div>
-                              </div>
-
-                              <form onSubmit={handleSubmit} style={{ marginTop: 'auto', display: 'flex', gap: '10px' }}>
-                                  <select required style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', border: '1px solid #BAE6FD', outline: 'none', fontWeight: 800, fontSize: '0.8125rem', background: '#F0F9FF' }} onChange={e => setFormData({...formData, event: e.target.value})}>
-                                      <option value="">Select Event Target...</option>
-                                      {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
-                                  </select>
-                                  <button type="submit" className="button button--primary" style={{ padding: '0 2rem', background: '#10B981', border: 'none', fontWeight: 900 }}>CONFIRM</button>
-                              </form>
-                          </div>
-                      ) : (
-                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #CBD5E1', borderRadius: '24px', background: '#F8FAFC' }}>
-                              <div style={{ textAlign: 'center', color: '#94A3B8' }}>
-                                  <FontAwesomeIcon icon={faIdCard} size="3x" style={{ marginBottom: '1rem', opacity: 0.2 }} />
-                                  <p style={{ fontWeight: 800, fontSize: '0.875rem' }}>AWAITING SCAN...</p>
-                                  <p style={{ fontSize: '0.75rem', maxWidth: '200px' }}>Place the digital QR code within the scanner viewport.</p>
-                              </div>
-                          </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* COMPACT LOG VIEW */}
-      <section className="animate-fade-in">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 900, letterSpacing: '0.02em', color: '#0F172A' }}>
-                <FontAwesomeIcon icon={faHistory} style={{ color: '#4169E1', marginRight: '8px' }} /> 
-                REAL-TIME PARTICIPATION LOG
-            </h3>
-            <div style={{ position: 'relative' }}>
-                <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', fontSize: '0.75rem' }} />
-                <input style={{ padding: '0.5rem 1rem 0.5rem 2.25rem', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '0.75rem', width: '280px', fontWeight: 600 }} placeholder="Filter by Name or Event Title..." onChange={e => setSearchTerm(e.target.value)} />
-            </div>
-        </div>
-        
-        <div className="table-wrapper">
-            <table className="data-table">
-            <thead>
-                <tr>
-                <th>IDENTIFIED RESIDENT</th>
-                <th>CLINICAL EVENT / ACTION</th>
-                <th>TIMESTAMP</th>
-                <th>STATUS</th>
-                </tr>
-            </thead>
-            <tbody>
-                {filtered.map(a => (
-                <tr key={a._id}>
-                    <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}><FontAwesomeIcon icon={faUser} size="xs" /></div>
-                            <div>
-                                <div style={{ fontWeight: 800, color: '#1E293B' }}>{a.patient?.name}</div>
-                                <div style={{ fontSize: '0.6rem', color: '#94A3B8', fontWeight: 800 }}>ID: {a.patient?._id?.slice(-8).toUpperCase()}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td><div style={{ fontWeight: 700, color: '#4169E1', fontSize: '0.8125rem' }}>{a.event?.title}</div></td>
-                    <td>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 800 }}>{new Date(a.date).toLocaleDateString()}</div>
-                        <div style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 700 }}>{new Date(a.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                    </td>
-                    <td><span className="tag" style={{ background: '#DCFCE7', color: '#10B981', border: '1px solid #10B981', fontWeight: 900 }}>VERIFIED PRESENT</span></td>
-                </tr>
-                ))}
-            </tbody>
-            </table>
-        </div>
-      </section>
-
-      {/* MANUAL ENTRY MODAL */}
-      {isModalOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, backdropFilter: 'blur(10px)' }}>
-          <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem', borderRadius: '28px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900 }}>Manual Registration</h2>
-                <button onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: '#F1F5F9', color: '#64748B', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer' }}><FontAwesomeIcon icon={faTimes} /></button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94A3B8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Resident Name & System ID</label>
-                <select 
-                  required 
-                  style={{ width: '100%', padding: '0.875rem', borderRadius: '14px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 800, fontSize: '0.875rem' }}
-                  onChange={e => setFormData({...formData, patient: e.target.value})}
-                >
-                  <option value="">Select Resident...</option>
-                  {patients.map(p => <option key={p._id} value={p._id}>{p.name} ({p._id.slice(-8).toUpperCase()})</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94A3B8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Clinical Health Event</label>
-                <select 
-                  required 
-                  style={{ width: '100%', padding: '0.875rem', borderRadius: '14px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 800, fontSize: '0.875rem' }}
-                  onChange={e => setFormData({...formData, event: e.target.value})}
-                >
-                  <option value="">Choose Health Event...</option>
-                  {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
-                </select>
-              </div>
-              <textarea placeholder="Clinical remarks or observations..." style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', minHeight: '100px', outline: 'none', fontSize: '0.875rem', lineHeight: 1.6 }} onChange={e => setFormData({...formData, remarks: e.target.value})} />
-              <button type="submit" className="button button--primary" style={{ width: '100%', padding: '1.125rem', borderRadius: '16px', fontWeight: 900, fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(65, 105, 225, 0.3)' }}>
-                  RECORD ATTENDANCE
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Animation CSS */}
       <style>{`
+        .responsive-actions { display: flex; gap: 0.75rem; }
+        .attendance-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .scanner-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; margin-bottom: 2.5rem; }
+        @media (min-width: 992px) { .scanner-layout { grid-template-columns: 380px 1fr; } }
+
+        .scanner-box { background: #0F172A; border-radius: 28px; padding: 1.5rem; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); overflow: hidden; }
+        .scanner-viewport { position: relative; width: 100%; height: 280px; border-radius: 20px; overflow: hidden; border: 2px solid #334155; }
+        .scanner-laser { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #4169E1; box-shadow: 0 0 15px #4169E1; z-index: 10; animation: scan-move 2s infinite ease-in-out; }
+        .corner { position: absolute; width: 24px; height: 24px; border: 3px solid #4169E1; z-index: 11; }
+        .corner-tl { top: 20px; left: 20px; border-right: 0; border-bottom: 0; }
+        .corner-tr { top: 20px; right: 20px; border-left: 0; border-bottom: 0; }
+        .corner-bl { bottom: 20px; left: 20px; border-right: 0; border-top: 0; }
+        .corner-br { bottom: 20px; right: 20px; border-left: 0; border-top: 0; }
+
+        .log-section { background: white; border-radius: 20px; border: 1px solid #E2E8F0; overflow: hidden; }
+        .scrollable-table { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
         @keyframes scan-move {
             0% { top: 10%; }
             50% { top: 90%; }
             100% { top: 10%; }
         }
       `}</style>
+
+      {/* Summary Stats */}
+      <div className="attendance-stats animate-fade-in">
+        {stats.map((stat, i) => (
+          <div key={i} className="report-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `${stat.color}15`, color: stat.color, display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: '1.25rem' }}>
+              <FontAwesomeIcon icon={stat.icon} style={{ margin: 'auto' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900 }}>{stat.value}</div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase' }}>{stat.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {isScannerOpen && (
+          <div className="scanner-layout animate-fade-in">
+              {/* Professional Scanner Frame */}
+              <div className="scanner-box">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem', color: 'white' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#4169E1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FontAwesomeIcon icon={faVideo} className="status-pulse" /> SCANNER ACTIVE
+                      </span>
+                      <button onClick={() => { setIsScannerOpen(false); setScannedPatient(null); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '50%' }}><FontAwesomeIcon icon={faTimes} size="sm" /></button>
+                  </div>
+
+                  <div className="scanner-viewport">
+                      <div id="reader" style={{ width: '100%', height: '100%' }}></div>
+                      {!scannedPatient && <div className="scanner-laser"></div>}
+                      <div className="corner corner-tl"></div>
+                      <div className="corner corner-tr"></div>
+                      <div className="corner corner-bl"></div>
+                      <div className="corner corner-br"></div>
+                  </div>
+
+                  <div style={{ marginTop: '1.5rem', textAlign: 'center', color: '#64748B' }}>
+                      <p style={{ fontSize: '0.65rem', fontWeight: 800, margin: 0 }}>POINT CAMERA AT QR CODE</p>
+                  </div>
+              </div>
+
+              {/* Verified Information Panel */}
+              <div style={{ flex: 1 }}>
+                  {scannedPatient ? (
+                      <div className="report-card animate-fade-in" style={{ height: '100%', border: '2px solid #10B981', padding: '2rem', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '28px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                  <div style={{ width: '60px', height: '60px', borderRadius: '16px', background: '#10B981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', boxShadow: '0 8px 16px rgba(16, 185, 129, 0.2)' }}>
+                                      <FontAwesomeIcon icon={faUserCheck} />
+                                  </div>
+                                  <div>
+                                      <h4 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900 }}>{scannedPatient.name}</h4>
+                                      <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#10B981' }}>IDENTITY VERIFIED</span>
+                                  </div>
+                              </div>
+                              <button className="icon-button" style={{ background: '#F1F5F9' }} onClick={() => { setScannedPatient(null); if(scannerInstance) scannerInstance.resume(); }}><FontAwesomeIcon icon={faSync} /></button>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+                              <div style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+                                  <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 800, display: 'block', marginBottom: '4px' }}>AGE & GENDER</span>
+                                  <span style={{ fontWeight: 800, fontSize: '1rem' }}>{scannedPatient.age}y • {scannedPatient.gender}</span>
+                              </div>
+                              <div style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+                                  <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 800, display: 'block', marginBottom: '4px' }}>CONTACT</span>
+                                  <span style={{ fontWeight: 800, fontSize: '1rem' }}>{scannedPatient.contact}</span>
+                              </div>
+                          </div>
+
+                          <form onSubmit={handleSubmit} style={{ marginTop: 'auto' }}>
+                              <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>SELECT HEALTH EVENT</label>
+                              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                <select required style={{ flex: 1, minWidth: '200px', padding: '1rem', borderRadius: '16px', border: '2px solid #BAE6FD', outline: 'none', background: '#F0F9FF', fontWeight: 800 }} onChange={e => setFormData({...formData, event: e.target.value})}>
+                                    <option value="">Choose the event...</option>
+                                    {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
+                                </select>
+                                <button type="submit" className="button button--primary" style={{ height: '54px', padding: '0 2.5rem', fontSize: '1rem' }}>CONFIRM PRESENCE</button>
+                              </div>
+                          </form>
+                      </div>
+                  ) : (
+                      <div style={{ height: '100%', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #CBD5E1', borderRadius: '28px', background: '#F8FAFC', padding: '2rem' }}>
+                          <div style={{ textAlign: 'center', color: '#94A3B8' }}>
+                              <FontAwesomeIcon icon={faIdCard} size="4x" style={{ marginBottom: '1.5rem', opacity: 0.15 }} />
+                              <p style={{ fontWeight: 900, fontSize: '1rem', color: '#64748B' }}>AWAITING QR SCAN...</p>
+                              <p style={{ fontSize: '0.8125rem', maxWidth: '240px' }}>Hold the resident's ID code in front of the camera to verify.</p>
+                          </div>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
+      {/* Logs Table */}
+      <section className="animate-fade-in">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 900 }}>
+                <FontAwesomeIcon icon={faHistory} style={{ color: '#4169E1', marginRight: '10px' }} /> 
+                Recent Attendance
+            </h3>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+                <input style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '0.875rem' }} placeholder="Search name or event..." onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+        </div>
+        
+        <div className="log-section scrollable-table">
+            <table className="data-table">
+            <thead>
+                <tr>
+                <th style={{ padding: '1rem 1.5rem' }}>Resident Name</th>
+                <th>Health Event</th>
+                <th>Check-in Time</th>
+                <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {filtered.length > 0 ? filtered.map(a => (
+                <tr key={a._id}>
+                    <td style={{ padding: '1rem 1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4169E1' }}>
+                                <FontAwesomeIcon icon={faUser} size="sm" />
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 800, color: '#1E293B' }}>{a.patient?.name}</div>
+                                <div style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 700 }}>VERIFIED</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><div style={{ fontWeight: 700, color: '#4169E1' }}>{a.event?.title}</div></td>
+                    <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#475569' }}>
+                            <FontAwesomeIcon icon={faClock} style={{ color: '#94A3B8', fontSize: '0.75rem' }} />
+                            {new Date(a.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(a.date).toLocaleDateString()}</div>
+                    </td>
+                    <td><span className="tag" style={{ background: '#DCFCE7', color: '#10B981', border: '1px solid #10B981', fontWeight: 900, padding: '4px 12px' }}>PRESENT</span></td>
+                </tr>
+                )) : (
+                    <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', padding: '4rem' }}>No attendance records found.</td>
+                    </tr>
+                )}
+            </tbody>
+            </table>
+        </div>
+      </section>
+
+      {/* Manual Entry Modal */}
+      {isModalOpen && (
+        <div className="modal-overlay">
+          <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '2.5rem', borderRadius: '28px', position: 'relative' }}>
+            <button onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', border: 'none', background: '#F1F5F9', color: '#64748B', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer' }}><FontAwesomeIcon icon={faTimes} /></button>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>Manual Entry</h2>
+            <p style={{ fontSize: '0.875rem', color: '#64748B', marginBottom: '2rem' }}>Record attendance without scanning a QR code.</p>
+            
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>SEARCH PERSON</label>
+                <select 
+                  required 
+                  style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', background: 'white', fontWeight: 800, outline: 'none' }}
+                  onChange={e => setFormData({...formData, patient: e.target.value})}
+                >
+                  <option value="">Select from list...</option>
+                  {patients.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>SELECT EVENT</label>
+                <select 
+                  required 
+                  style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', background: 'white', fontWeight: 800, outline: 'none' }}
+                  onChange={e => setFormData({...formData, event: e.target.value})}
+                >
+                  <option value="">Choose an event...</option>
+                  {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
+                </select>
+              </div>
+              <textarea placeholder="Add any notes here..." style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', minHeight: '100px', outline: 'none', fontFamily: 'inherit' }} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+              <button type="submit" className="button button--primary" style={{ height: '54px', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(65, 105, 225, 0.3)' }}>
+                  SAVE ATTENDANCE
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

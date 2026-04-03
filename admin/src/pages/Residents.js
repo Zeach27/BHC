@@ -3,8 +3,11 @@ import axios from "axios";
 import Layout from "../components/Layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
-  faUserPlus, faSearch, faTimes, faUserCircle, faPhone, 
-  faMapMarkerAlt, faFilter, faDownload, faEdit, faTrash 
+  faSearch, faTrash, faSync, faCircle,
+  faMobileAlt, faBan, faCheckCircle, faStethoscope,
+  faDownload, faFilter, faUser, faBirthdayCake, 
+  faVenusMars, faIdCard, faMapMarkerAlt, faPhoneAlt,
+  faHeartbeat, faSyringe, faShieldAlt
 } from "@fortawesome/free-solid-svg-icons";
 
 const API_URL = "http://localhost:5000/api/residents";
@@ -12,129 +15,245 @@ const API_URL = "http://localhost:5000/api/residents";
 export default function Residents() {
   const [residents, setResidents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentId, setCurrentId] = useState(null);
-  const [formData, setFormData] = useState({
-    fullName: "", username: "", email: "", phone: "", address: ""
-  });
+  const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("All");
 
   useEffect(() => {
     fetchResidents();
   }, []);
 
   const fetchResidents = async () => {
+    setLoading(true);
     try {
       const res = await axios.get(API_URL);
       setResidents(res.data);
     } catch (err) { console.error(err); }
+    setLoading(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const updateStatus = async (id, newStatus) => {
     try {
-      if (isEditing) {
-        await axios.put(`${API_URL}/${currentId}`, formData);
-      } else {
-        await axios.post(`${API_URL}/add`, formData);
-      }
+      await axios.put(`${API_URL}/${id}`, { status: newStatus });
       fetchResidents();
-      setIsModalOpen(false);
     } catch (err) { console.error(err); }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Delete this resident?")) {
-      await axios.delete(`${API_URL}/${id}`);
-      fetchResidents();
+    if (window.confirm("Are you sure you want to permanently delete this digital account?")) {
+      try {
+        await axios.delete(`${API_URL}/${id}`);
+        fetchResidents();
+      } catch (err) { console.error(err); }
     }
   };
 
-  const filtered = residents.filter(r => 
-    r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.username.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = residents.filter(r => {
+    const searchStr = (r.fullName + (r.username || "") + (r.idNumber || "")).toLowerCase();
+    const matchesSearch = searchStr.includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === "All" || r.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const headerActions = (
+    <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <button className="button button--secondary" onClick={fetchResidents} disabled={loading}>
+        <FontAwesomeIcon icon={faSync} spin={loading} />
+        Sync Accounts
+      </button>
+      <button className="button button--secondary">
+        <FontAwesomeIcon icon={faDownload} />
+        Export CSV
+      </button>
+    </div>
   );
 
   return (
-    <Layout title="Residents Directory" subtitle={`Managing ${residents.length} community members`}
-      actions={
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="button button--secondary"><FontAwesomeIcon icon={faDownload} /> Export</button>
-          <button className="button button--primary" onClick={() => { setIsEditing(false); setFormData({fullName:"", username:"", email:"", phone:"", address:""}); setIsModalOpen(true); }}>
-            <FontAwesomeIcon icon={faUserPlus} /> Add Resident
-          </button>
-        </div>
-      }
+    <Layout 
+      title="App Registrations" 
+      subtitle={`Manage ${residents.length} community patient accounts`}
+      actions={headerActions}
     >
-      <section className="animate-fade-in" style={{ marginBottom: '2rem' }}>
-        <div className="report-card" style={{ padding: '1rem', display: 'flex', gap: '1rem' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+      <section style={{ marginBottom: '2rem' }} className="animate-fade-in">
+        <div className="report-card" style={{ padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '250px' }}>
             <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
-            <input style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}
-              placeholder="Search residents..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input
+              style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '0.875rem', backgroundColor: '#F8FAFC' }}
+              placeholder="Search by name, username, or ID number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <select 
+              style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #E2E8F0', background: 'white', fontWeight: 700, fontSize: '0.8125rem', cursor: 'pointer', outline: 'none' }}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
+              <option value="Suspended">Suspended</option>
+            </select>
           </div>
         </div>
       </section>
 
-      <div className="table-wrapper animate-fade-in" style={{ overflowX: 'auto' }}>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Resident Profile</th>
-              <th>Contact</th>
-              <th>Address</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(r => (
-              <tr key={r._id}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#E8EFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4169E1' }}>
-                      <FontAwesomeIcon icon={faUserCircle} size="lg" />
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', 
+        gap: '1.5rem',
+        paddingBottom: '2rem'
+      }} className="animate-fade-in">
+        {filtered.length > 0 ? filtered.map((r) => (
+          <div key={r._id} className="report-card hover-reveal" style={{ 
+            padding: '0', 
+            borderRadius: '24px', 
+            overflow: 'hidden',
+            border: '1px solid #E2E8F0',
+            transition: 'all 0.3s ease'
+          }}>
+            {/* Header / Status Banner */}
+            <div style={{ 
+              height: '80px', 
+              background: r.status === 'Suspended' ? 'linear-gradient(135deg, #EF4444, #991B1B)' : 'linear-gradient(135deg, #4169E1, #1E40AF)',
+              position: 'relative',
+              padding: '1rem 1.5rem'
+            }}>
+              <span style={{ 
+                background: 'rgba(255,255,255,0.2)', 
+                color: 'white', 
+                padding: '4px 12px', 
+                borderRadius: '99px', 
+                fontSize: '0.65rem', 
+                fontWeight: 800,
+                backdropFilter: 'blur(4px)'
+              }}>
+                {r.status || 'Active'}
+              </span>
+              <div style={{ position: 'absolute', right: '1.5rem', bottom: '-20px' }}>
+                <div style={{ 
+                  width: '64px', 
+                  height: '64px', 
+                  borderRadius: '18px', 
+                  background: 'white', 
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                  padding: '4px'
+                }}>
+                  {r.profileImage ? (
+                    <img src={r.profileImage} alt={r.fullName} style={{ width: '100%', height: '100%', borderRadius: '14px', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ 
+                      width: '100%', height: '100%', borderRadius: '14px', 
+                      background: '#F1F5F9', color: '#4169E1', 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '1.5rem', fontWeight: 800
+                    }}>
+                      {r.fullName.charAt(0)}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{r.fullName}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748B' }}>@{r.username}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div style={{ fontWeight: 600 }}>{r.email}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{r.phone}</div>
-                </td>
-                <td><div style={{ fontSize: '0.8125rem' }}>{r.address}</div></td>
-                <td style={{ textAlign: 'right' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                    <button className="icon-button" onClick={() => { setIsEditing(true); setCurrentId(r._id); setFormData({...r}); setIsModalOpen(true); }}><FontAwesomeIcon icon={faEdit} /></button>
-                    <button className="icon-button text-danger" onClick={() => handleDelete(r._id)}><FontAwesomeIcon icon={faTrash} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
-          <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
-            <h2>{isEditing ? 'Edit Resident' : 'Add New Resident'}</h2>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
-              <input name="fullName" value={formData.fullName} onChange={(e)=>setFormData({...formData, fullName: e.target.value})} placeholder="Full Name" required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
-              <input name="username" value={formData.username} onChange={(e)=>setFormData({...formData, username: e.target.value})} placeholder="Username" required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
-              <input name="email" type="email" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} placeholder="Email Address" required style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
-              <input name="phone" value={formData.phone} onChange={(e)=>setFormData({...formData, phone: e.target.value})} placeholder="Phone Number" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
-              <input name="address" value={formData.address} onChange={(e)=>setFormData({...formData, address: e.target.value})} placeholder="Address" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="button button--secondary" style={{ flex: 1 }}>Cancel</button>
-                <button type="submit" className="button button--primary" style={{ flex: 1 }}>Save Resident</button>
+                  )}
+                </div>
               </div>
-            </form>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '2rem 1.5rem 1.5rem' }}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0F172A' }}>{r.fullName}</h3>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#4169E1', fontWeight: 800 }}>@{r.username}</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faIdCard} /></div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>ID Number</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>{r.idNumber || r._id.slice(-8).toUpperCase()}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faBirthdayCake} /></div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Age & Birthday</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>
+                      {r.age || '??'}y • {r.birthday ? new Date(r.birthday).toLocaleDateString() : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faVenusMars} /></div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Gender</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>{r.gender || 'Not set'}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faMapMarkerAlt} /></div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Address</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>P-{r.purok}, {r.barangay || 'Brgy Sample'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Health Info Badges */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ 
+                  background: '#F1F5F9', padding: '6px 12px', borderRadius: '10px', 
+                  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 800, color: '#475569'
+                }}>
+                  <FontAwesomeIcon icon={faHeartbeat} style={{ color: '#EF4444' }} /> {r.bloodType || 'B.Type: --'}
+                </div>
+                <div style={{ 
+                  background: '#F1F5F9', padding: '6px 12px', borderRadius: '10px', 
+                  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 800, color: '#475569'
+                }}>
+                  <FontAwesomeIcon icon={faSyringe} style={{ color: '#8B5CF6' }} /> {r.vaccinationStatus || 'Unvaccinated'}
+                </div>
+              </div>
+
+              <div style={{ 
+                borderTop: '1px solid #F1F5F9', 
+                paddingTop: '1rem', 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="icon-button" title="Sync Health Records" style={{ background: '#E8EFFF', color: '#4169E1' }}>
+                    <FontAwesomeIcon icon={faSync} size="sm" />
+                  </button>
+                  <button className="icon-button" title="Medical History" style={{ background: '#F1F5F9' }}>
+                    <FontAwesomeIcon icon={faStethoscope} size="sm" />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                   {r.status !== 'Suspended' ? (
+                      <button className="button button--secondary" onClick={() => updateStatus(r._id, 'Suspended')} style={{ height: '32px', fontSize: '0.7rem', color: '#EF4444' }}>
+                        <FontAwesomeIcon icon={faBan} /> Suspend
+                      </button>
+                    ) : (
+                      <button className="button button--secondary" onClick={() => updateStatus(r._id, 'Active')} style={{ height: '32px', fontSize: '0.7rem', color: '#10B981' }}>
+                        <FontAwesomeIcon icon={faCheckCircle} /> Activate
+                      </button>
+                    )}
+                    <button className="icon-button" onClick={() => handleDelete(r._id)} style={{ background: '#FEF2F2', color: '#EF4444' }}>
+                      <FontAwesomeIcon icon={faTrash} size="sm" />
+                    </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )) : (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '5rem 0' }}>
+            <div style={{ color: '#94A3B8' }}>
+              <FontAwesomeIcon icon={faMobileAlt} size="3x" style={{ marginBottom: '1.5rem', opacity: 0.1 }} />
+              <p style={{ fontSize: '1rem', fontWeight: 700, color: '#475569', margin: '0 0 4px 0' }}>No app registrations found</p>
+              <p style={{ fontSize: '0.875rem' }}>Registered accounts will appear here</p>
+            </div>
+          </div>
+        )}
+      </div>
     </Layout>
   );
 }
