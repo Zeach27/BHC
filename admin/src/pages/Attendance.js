@@ -6,24 +6,28 @@ import {
   faSearch, faPlus, faUser,
   faQrcode, faTimes, faUserCheck, faIdCard,
   faHistory, faSync, faVideo,
-  faCalendarCheck, faClock
+  faCalendarCheck, faClock, faEdit, faTrash
 } from "@fortawesome/free-solid-svg-icons";
 import { Html5Qrcode } from "html5-qrcode";
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function Attendance() {
   const [attendance, setAttendance] = useState([]);
   const [patients, setPatients] = useState([]);
   const [events, setEvents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [scannedPatient, setScannedPatient] = useState(null);
   const [scannerInstance, setScannerInstance] = useState(null);
+  const [editingRecord, setEditingRecord] = useState(null);
   
   const [formData, setFormData] = useState({
     patient: "",
     event: "",
-    remarks: ""
+    remarks: "",
+    status: "Present"
   });
 
   const fetchAttendance = useCallback(async () => {
@@ -59,12 +63,14 @@ export default function Attendance() {
       if (patient) {
         setScannedPatient(patient);
         setFormData(prev => ({ ...prev, patient: patient._id }));
+        toast.success("Patient found!");
       } else {
-        alert("Not Found: Patient ID not recognized.");
+        toast.error("Not Found: Patient ID not recognized.");
         if (scannerInstance) scannerInstance.resume();
       }
     } catch (err) { 
         console.error(err); 
+        toast.error("Error scanning code.");
         if (scannerInstance) scannerInstance.resume();
     }
   }, [scannerInstance]);
@@ -97,12 +103,55 @@ export default function Attendance() {
     e.preventDefault();
     try {
       await axios.post("http://localhost:5000/api/attendance/mark", formData);
+      toast.success("Attendance marked successfully!");
       fetchAttendance();
       setIsModalOpen(false);
       setIsScannerOpen(false);
       setScannedPatient(null);
-      setFormData({ patient: "", event: "", remarks: "" });
-    } catch (err) { console.error(err); }
+      setFormData({ patient: "", event: "", remarks: "", status: "Present" });
+    } catch (err) { 
+      toast.error(err.response?.data?.message || "Failed to mark attendance.");
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`http://localhost:5000/api/attendance/${editingRecord._id}`, {
+        status: formData.status,
+        remarks: formData.remarks
+      });
+      toast.success("Attendance updated successfully!");
+      fetchAttendance();
+      setIsEditModalOpen(false);
+      setEditingRecord(null);
+      setFormData({ patient: "", event: "", remarks: "", status: "Present" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update attendance.");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this attendance record?")) {
+      try {
+        await axios.delete(`http://localhost:5000/api/attendance/${id}`);
+        toast.success("Attendance record deleted.");
+        fetchAttendance();
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to delete attendance.");
+      }
+    }
+  };
+
+  const openEditModal = (record) => {
+    setEditingRecord(record);
+    setFormData({
+      patient: record.patient?._id || "",
+      event: record.event?._id || "",
+      remarks: record.remarks || "",
+      status: record.status || "Present"
+    });
+    setIsEditModalOpen(true);
   };
 
   const filtered = attendance.filter(a => 
@@ -132,6 +181,7 @@ export default function Attendance() {
       subtitle="Check who is present for health events using QR codes"
       actions={headerActions}
     >
+      <Toaster position="top-right" />
       <style>{`
         .responsive-actions { display: flex; gap: 0.75rem; }
         .attendance-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
@@ -225,14 +275,23 @@ export default function Attendance() {
                               </div>
                           </div>
 
-                          <form onSubmit={handleSubmit} style={{ marginTop: 'auto' }}>
-                              <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>SELECT HEALTH EVENT</label>
+                          <form onSubmit={handleSubmit} style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div>
+                                  <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>SELECT HEALTH EVENT</label>
+                                  <select required style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '2px solid #BAE6FD', outline: 'none', background: '#F0F9FF', fontWeight: 800 }} onChange={e => setFormData({...formData, event: e.target.value})}>
+                                      <option value="">Choose the event...</option>
+                                      {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
+                                  </select>
+                              </div>
                               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                                <select required style={{ flex: 1, minWidth: '200px', padding: '1rem', borderRadius: '16px', border: '2px solid #BAE6FD', outline: 'none', background: '#F0F9FF', fontWeight: 800 }} onChange={e => setFormData({...formData, event: e.target.value})}>
-                                    <option value="">Choose the event...</option>
-                                    {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
-                                </select>
-                                <button type="submit" className="button button--primary" style={{ height: '54px', padding: '0 2.5rem', fontSize: '1rem' }}>CONFIRM PRESENCE</button>
+                                  <div style={{ flex: 1, minWidth: '120px' }}>
+                                      <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>STATUS</label>
+                                      <select style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 800 }} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                                          <option value="Present">Present</option>
+                                          <option value="Absent">Absent</option>
+                                      </select>
+                                  </div>
+                                  <button type="submit" className="button button--primary" style={{ height: '54px', padding: '0 2.5rem', fontSize: '1rem', alignSelf: 'flex-end', flex: 2 }}>CONFIRM PRESENCE</button>
                               </div>
                           </form>
                       </div>
@@ -270,6 +329,7 @@ export default function Attendance() {
                 <th>Health Event</th>
                 <th>Check-in Time</th>
                 <th>Status</th>
+                <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -294,11 +354,27 @@ export default function Attendance() {
                         </div>
                         <div style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(a.date).toLocaleDateString()}</div>
                     </td>
-                    <td><span className="tag" style={{ background: '#DCFCE7', color: '#10B981', border: '1px solid #10B981', fontWeight: 900, padding: '4px 12px' }}>PRESENT</span></td>
+                    <td>
+                      {a.status === 'Absent' ? (
+                        <span className="tag" style={{ background: '#FEE2E2', color: '#EF4444', border: '1px solid #EF4444', fontWeight: 900, padding: '4px 12px' }}>ABSENT</span>
+                      ) : (
+                        <span className="tag" style={{ background: '#DCFCE7', color: '#10B981', border: '1px solid #10B981', fontWeight: 900, padding: '4px 12px' }}>PRESENT</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button className="icon-button" onClick={() => openEditModal(a)} style={{ background: '#F1F5F9', color: '#4169E1', border: 'none', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer' }} title="Edit Record">
+                          <FontAwesomeIcon icon={faEdit} />
+                        </button>
+                        <button className="icon-button" onClick={() => handleDelete(a._id)} style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer' }} title="Delete Record">
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
+                    </td>
                 </tr>
                 )) : (
                     <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', padding: '4rem' }}>No attendance records found.</td>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '4rem' }}>No attendance records found.</td>
                     </tr>
                 )}
             </tbody>
@@ -337,9 +413,55 @@ export default function Attendance() {
                   {events.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
                 </select>
               </div>
-              <textarea placeholder="Add any notes here..." style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', minHeight: '100px', outline: 'none', fontFamily: 'inherit' }} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+              <div>
+                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>STATUS</label>
+                <select 
+                  style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', background: 'white', fontWeight: 800, outline: 'none' }}
+                  value={formData.status}
+                  onChange={e => setFormData({...formData, status: e.target.value})}
+                >
+                  <option value="Present">Present</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>REMARKS (OPTIONAL)</label>
+                <textarea placeholder="Add any notes here..." style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', minHeight: '100px', outline: 'none', fontFamily: 'inherit' }} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+              </div>
               <button type="submit" className="button button--primary" style={{ height: '54px', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(65, 105, 225, 0.3)' }}>
                   SAVE ATTENDANCE
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div className="modal-overlay">
+          <div className="report-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '2.5rem', borderRadius: '28px', position: 'relative' }}>
+            <button onClick={() => { setIsEditModalOpen(false); setEditingRecord(null); }} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', border: 'none', background: '#F1F5F9', color: '#64748B', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer' }}><FontAwesomeIcon icon={faTimes} /></button>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>Edit Attendance</h2>
+            <p style={{ fontSize: '0.875rem', color: '#64748B', marginBottom: '2rem' }}>Update status and remarks for {editingRecord?.patient?.name}</p>
+            
+            <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>STATUS</label>
+                <select 
+                  style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', background: 'white', fontWeight: 800, outline: 'none' }}
+                  value={formData.status}
+                  onChange={e => setFormData({...formData, status: e.target.value})}
+                >
+                  <option value="Present">Present</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', display: 'block', marginBottom: '8px' }}>REMARKS</label>
+                <textarea value={formData.remarks} placeholder="Add any notes here..." style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', minHeight: '100px', outline: 'none', fontFamily: 'inherit' }} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+              </div>
+              <button type="submit" className="button button--primary" style={{ height: '54px', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(65, 105, 225, 0.3)' }}>
+                  UPDATE RECORD
               </button>
             </form>
           </div>

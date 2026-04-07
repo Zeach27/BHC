@@ -3,23 +3,40 @@ const mongoose = require("mongoose");
 const ScheduleSchema = new mongoose.Schema({
   patient: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Patient',
+    refPath: 'patientModel', // Dynamic ref
     required: true
   },
-  patientName: String, // Denormalized for simpler display if needed
+  patientModel: {
+    type: String,
+    required: true,
+    enum: ['Patient', 'Resident'],
+    default: 'Patient'
+  },
+  patientName: String, 
   date: {
     type: Date,
     required: true
   },
   scheduleType: {
     type: String,
-    enum: ['Prenatal', 'Immunization', 'Special Case'],
+    enum: ['Prenatal', 'Post-Natal', 'Immunization', 'Special Case', 'Routine', 'NCD (Hypertension/Diabetes)', 'Family Planning', 'Dental', 'Medical Certificate', 'TB DOTS', 'Nutrition'],
     required: true
   },
   service: {
-    type: String, // e.g., "BCG", "Anti-rabies", "Prenatal Check-up"
+    type: String, 
     required: true
   },
+  urgency: {
+    type: String,
+    enum: ['Normal', 'Urgent', 'Emergency'],
+    default: 'Normal'
+  },
+  location: {
+    type: String,
+    enum: ['Health Center', 'Home Visit', 'Satellite Clinic'],
+    default: 'Health Center'
+  },
+  assignedStaff: String, // Midwife or Nurse name
   doseNumber: {
     type: Number,
     default: 1

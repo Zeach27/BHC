@@ -110,16 +110,35 @@ const seedDatabase = async () => {
     { title: "System Maintenance", content: "CHESMS will undergo maintenance on Sunday at 2 AM.", category: "General", priority: "Low", author: "Admin Setup" }
   ]);
 
-  // 3. Patients (Distribute ages: Pediatric <=12, Teen <=19, Adult <=59, Senior >=60)
+  // 3. Patients (Detailed data for enhanced schema)
   const patientData = [];
   const ages = [5, 8, 10, 11, 14, 16, 17, 18, 25, 30, 35, 40, 45, 50, 62, 65, 70, 75, 80, 85];
+  const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'O+', 'O-', 'Unknown'];
+  const civilStatuses = ['Single', 'Married', 'Widowed', 'Separated'];
+  const conditions = ['Asthma', 'Hypertension', 'Diabetes', 'Allergies', 'None', 'Heart Disease'];
+  
   for (let i = 0; i < ages.length; i++) {
+    const gender = i % 2 === 0 ? "Male" : "Female";
+    const bType = bloodTypes[Math.floor(Math.random() * bloodTypes.length)];
+    const cStatus = ages[i] > 20 ? civilStatuses[Math.floor(Math.random() * civilStatuses.length)] : 'Single';
+    const medicalHistory = ages[i] > 40 ? [conditions[1], conditions[2]] : [conditions[Math.floor(Math.random() * conditions.length)]];
+
     patientData.push({
+      patientId: `PAT-2026-${Math.floor(10000 + Math.random() * 90000)}`,
       name: `Patient ${i + 1}`,
       age: ages[i],
-      gender: i % 2 === 0 ? "Male" : "Female",
+      gender: gender,
+      civilStatus: cStatus,
+      bloodType: bType,
       address: `Purok ${Math.floor(Math.random() * 5) + 1}, Barangay Health`,
-      contact: `09${Math.floor(100000000 + Math.random() * 900000000)}`
+      contact: `09${Math.floor(100000000 + Math.random() * 900000000)}`,
+      emergencyContact: {
+        name: `Emergency Contact ${i + 1}`,
+        relation: i % 2 === 0 ? 'Parent' : 'Spouse',
+        phone: `09${Math.floor(100000000 + Math.random() * 900000000)}`
+      },
+      medicalHistory: medicalHistory,
+      status: i % 10 === 0 ? 'Inactive' : 'Active'
     });
   }
   const insertedPatients = await Patient.insertMany(patientData);

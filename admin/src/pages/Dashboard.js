@@ -15,7 +15,8 @@ import {
   Bar, 
   PieChart, 
   Pie, 
-  Cell 
+  Cell,
+  LabelList
 } from "recharts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
@@ -38,18 +39,15 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 // Standardized Sparkline - Added minWidth and fixed height to avoid ResponsiveContainer warnings
-const Sparkline = ({ data, color }) => {
-  const chartData = (data || [0,0,0,0,0]).map((val) => ({ value: val }));
-  return (
-    <div style={{ width: 60, height: 24, minWidth: 60, minHeight: 24 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData}>
-          <Area type="monotone" dataKey="value" stroke={color} fill={color} fillOpacity={0.15} strokeWidth={1.5} isAnimationActive={false} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
+const MiniSparkline = ({ data, color }) => (
+  <div style={{ height: '30px', width: '60px', opacity: 0.6 }}>
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data}>
+        <Area type="monotone" dataKey="visits" stroke="white" fill="white" fillOpacity={0.2} strokeWidth={2} isAnimationActive={false} />
+      </AreaChart>
+    </ResponsiveContainer>
+  </div>
+);
 
 const DigitalClock = () => {
   const [time, setTime] = useState(new Date());
@@ -58,9 +56,10 @@ const DigitalClock = () => {
     return () => clearInterval(timer);
   }, []);
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'white', padding: '6px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: 'var(--shadow-sm)' }}>
-      <FontAwesomeIcon icon={faClock} style={{ color: '#4169E1', fontSize: '0.8rem' }} />
-      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1E293B' }}>
+    <div className="glass-effect" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: 'var(--shadow-sm)' }}>
+      <div className="status-pulse" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4169E1', display: 'inline-block' }}></div>
+      <FontAwesomeIcon icon={faClock} style={{ color: '#4169E1', fontSize: '0.85rem' }} />
+      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1E293B', letterSpacing: '0.5px' }}>
         {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </span>
     </div>
@@ -77,15 +76,13 @@ function Dashboard() {
   const isMobile = screenWidth <= 640;
   
   const [stats, setStats] = useState([
-    { label: "Visits", value: "0", icon: faFileMedical, color: "card--blue", path: "/records", history: [5, 8, 12, 7, 10, 15, 12] },
-    { label: "Programs", value: "0", icon: faCalendarAlt, color: "card--purple", path: "/events", history: [2, 3, 4, 3, 5, 4, 4] },
-    { label: "App Users", value: "0", icon: faUsers, color: "card--orange", path: "/residents", history: [140, 142, 145, 148, 150, 153, 156] },
-    { label: "BHW Staff", value: "0", icon: faUserTie, color: "card--emerald", path: "/staff", history: [2, 3, 3, 4, 4, 5, 4] },
-    { label: "Alerts", value: "0", icon: faBullhorn, color: "card--red", path: "/announcements", history: [2, 1, 3, 2, 4, 5, 5] },
+    { label: "Visits", value: "0", icon: faFileMedical, color: "card--blue", path: "/records", trend: "+12%" },
+    { label: "Programs", value: "0", icon: faCalendarAlt, color: "card--purple", path: "/events", trend: "+5%" },
+    { label: "App Users", value: "0", icon: faUsers, color: "card--orange", path: "/residents", trend: "+8%" },
+    { label: "BHW Staff", value: "0", icon: faUserTie, color: "card--emerald", path: "/staff", trend: "Stable" },
+    { label: "Alerts", value: "0", icon: faBullhorn, color: "card--red", path: "/announcements", trend: "Active" },
   ]);
 
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [morbidity, setMorbidity] = useState([]);
   const [purokData, setPurokData] = useState([]);
   const [demographicData, setDemographicData] = useState([]);
@@ -140,16 +137,6 @@ function Dashboard() {
     return { up: pct >= 0, text: `${Math.abs(pct)}%` };
   };
 
-  const formatTimeAgo = (date) => {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds < 60) return "Just now";
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
-  };
-
   useEffect(() => {
     const onResize = () => setScreenWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
@@ -171,20 +158,11 @@ function Dashboard() {
         `${apiBase}/appointments`
       ];
 
-      // Promise.allSettled ensures that one failing endpoint (like /api/users 404) 
-      // doesn't break the entire dashboard data loading.
       const results = await Promise.allSettled(endpoints.map(url => axios.get(url)));
       
       const [recRes, evtRes, patRes, annRes, schRes, userRes, resRes, apptRes] = results.map(r => 
         r.status === 'fulfilled' ? r.value.data : []
       );
-
-      // Log errors for debugging
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') {
-          console.warn(`Dashboard Fetch Warning: Failed to load ${endpoints[i]} - ${r.reason.message}`);
-        }
-      });
 
       const records = recRes || [];
       const events = evtRes || [];
@@ -198,19 +176,31 @@ function Dashboard() {
       setRawSchedules(schedules);
       setRawAppointments(appointments);
 
-      // 1. Purok Density
+      // 1. Purok Density - Removed slice(0, 5) to show all puroks as requested
       const pMap = {};
-      residents.forEach(r => { const p = `Purok ${r.purok || '?'}`; pMap[p] = (pMap[p] || 0) + 1; });
-      setPurokData(Object.entries(pMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 5));
+      residents.forEach(r => { 
+        if (r.purok) {
+          const p = `Purok ${r.purok}`; 
+          pMap[p] = (pMap[p] || 0) + 1; 
+        }
+      });
+      setPurokData(Object.entries(pMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a,b) => b.value - a.value));
 
-      // 2. Patient Profiles
-      const ageGroups = { 'Pediatric': 0, 'Teen': 0, 'Adult': 0, 'Senior': 0 };
+      // 2. Patient Profiles - Enhanced with descriptive age ranges
+      const ageGroups = { 
+        'Pediatric (0-12)': 0, 
+        'Teen (13-19)': 0, 
+        'Adult (20-59)': 0, 
+        'Senior (60+)': 0 
+      };
       patients.forEach(p => {
         const a = p.age || 0;
-        if (a <= 12) ageGroups['Pediatric']++;
-        else if (a <= 19) ageGroups['Teen']++;
-        else if (a <= 59) ageGroups['Adult']++;
-        else ageGroups['Senior']++;
+        if (a <= 12) ageGroups['Pediatric (0-12)']++;
+        else if (a <= 19) ageGroups['Teen (13-19)']++;
+        else if (a <= 59) ageGroups['Adult (20-59)']++;
+        else ageGroups['Senior (60+)']++;
       });
       setDemographicData(Object.entries(ageGroups).map(([name, value]) => ({ name, value })));
 
@@ -270,53 +260,6 @@ function Dashboard() {
       });
       setYearlyTrend(last5);
 
-      // 7. Upcoming Programs (Using todayStart for accurate inclusion)
-      const upcomingFromEvents = events
-        .filter(e => new Date(e.date) >= todayStart)
-        .slice(0, 3)
-        .map(e => ({
-          title: e.title,
-          date: new Date(e.date).toLocaleDateString(),
-          location: e.location || "Center",
-          type: "Event"
-        }));
-
-      const upcomingFromSchedules = schedules
-        .filter(s => new Date(s.date || s.scheduleDate) >= todayStart)
-        .slice(0, 3)
-        .map(s => ({
-          title: s.title || s.service || "Clinic Schedule",
-          date: new Date(s.date || s.scheduleDate).toLocaleDateString(),
-          location: s.location || "Health Center",
-          type: "Schedule"
-        }));
-
-      const upcomingFromAppointments = appointments
-        .filter(a => new Date(a.date || a.appointmentDate || a.scheduleDate) >= todayStart)
-        .slice(0, 3)
-        .map(a => ({
-          title: a.title || a.patientName || a.patient?.name || "Patient Appointment",
-          date: new Date(a.date || a.appointmentDate || a.scheduleDate).toLocaleDateString(),
-          location: a.location || "Consultation Room",
-          type: "Appointment"
-        }));
-
-      const mergedUpcoming = [...upcomingFromEvents, ...upcomingFromAppointments, ...upcomingFromSchedules]
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .slice(0, 5);
-
-      setUpcomingEvents(mergedUpcoming);
-
-      // 8. Activity Log
-      const activityData = [
-        ...records.map(r => ({ user: r.patient?.name || "Patient", action: "Completed Checkup", event: simplifyDiagnosisLabel(r.diagnosis || "Consultation"), ts: new Date(r.createdAt || r.date), type: 'record' })),
-        ...announcements.map(a => ({ user: "Admin", action: "Posted Announcement", event: a.title, ts: new Date(a.createdAt || now), type: 'alert' })),
-        ...appointments.slice(0, 5).map(a => ({ user: a.patientName || a.patient?.name || "Patient", action: "Booked Appointment", event: a.service || a.title || "Clinic Visit", ts: new Date(a.createdAt || a.date || a.appointmentDate || now), type: 'appointment' })),
-        ...schedules.slice(0, 5).map(s => ({ user: "Health Staff", action: "Scheduled Service", event: s.service || s.title || "Clinic Schedule", ts: new Date(s.createdAt || s.date || s.scheduleDate || now), type: 'schedule' }))
-      ].sort((a,b) => b.ts - a.ts).slice(0, 8);
-      
-      setRecentActivity(activityData.map(a => ({ ...a, time: formatTimeAgo(a.ts) })));
-
     } catch (err) {
       console.error("DASHBOARD_FATAL_ERROR:", err.message);
       setDailyTrend(dailyFallback);
@@ -344,7 +287,7 @@ function Dashboard() {
   ];
 
   const statGradients = {
-    "card--blue": "linear-gradient(135deg, #3B82F6, #2563EB)",
+    "card--blue": "linear-gradient(135deg, #4169E1, #2563EB)",
     "card--purple": "linear-gradient(135deg, #8B5CF6, #A855F7)",
     "card--orange": "linear-gradient(135deg, #F59E0B, #F97316)",
     "card--emerald": "linear-gradient(135deg, #10B981, #059669)",
@@ -355,63 +298,67 @@ function Dashboard() {
     shell: { maxWidth: '1400px', margin: '0 auto', width: '100%' },
     dashboardGrid: {
       display: 'grid',
-      gridTemplateColumns: screenWidth < 1100 ? '1fr' : 'minmax(0, 1fr) 340px',
-      gap: isMobile ? '1rem' : '1.5rem',
+      gridTemplateColumns: screenWidth < 1100 ? '1fr' : 'minmax(0, 1fr) 360px',
+      gap: isMobile ? '1rem' : '1.75rem',
       alignItems: 'start'
     },
     statsRow: {
       display: 'grid',
       gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)',
-      gap: isMobile ? '0.65rem' : '1rem',
-      marginBottom: isMobile ? '1rem' : '1.5rem'
+      gap: isMobile ? '0.75rem' : '1.25rem',
+      marginBottom: isMobile ? '1.25rem' : '2rem'
     },
     statCard: {
-      padding: isMobile ? '0.75rem' : '1rem',
-      borderRadius: isMobile ? '12px' : '16px',
+      padding: isMobile ? '1rem' : '1.25rem',
+      borderRadius: isMobile ? '16px' : '24px',
       color: 'white',
       position: 'relative',
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
-      height: isMobile ? '100px' : '120px',
-      cursor: 'pointer'
+      height: isMobile ? '110px' : '140px',
+      cursor: 'pointer',
+      boxShadow: 'var(--shadow)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     reportCard: {
       background: 'white',
-      padding: isMobile ? '1rem' : '1.25rem',
-      borderRadius: '20px',
+      padding: isMobile ? '1.25rem' : '1.5rem',
+      borderRadius: '24px',
       border: '1px solid #E2E8F0',
       boxShadow: 'var(--shadow-sm)',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      minHeight: isMobile ? '200px' : '260px',
+      minHeight: isMobile ? '220px' : '280px',
       maxWidth: '100%',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      transition: 'all 0.3s ease'
     },
     analyticalGrid: {
       display: 'grid',
       gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-      gap: isMobile ? '0.75rem' : '1rem',
-      marginTop: isMobile ? '0.75rem' : '1rem'
+      gap: isMobile ? '1rem' : '1.25rem',
+      marginTop: isMobile ? '1rem' : '1.25rem'
     },
     chartBox: {
-      height: isMobile ? '140px' : '180px',
+      height: isMobile ? '150px' : '190px',
       width: '100%',
       minWidth: 0,
       marginTop: 'auto'
     },
     viewPill: (active) => ({
-      padding: isMobile ? '3px 7px' : '4px 10px',
-      borderRadius: '6px',
+      padding: isMobile ? '4px 8px' : '6px 12px',
+      borderRadius: '10px',
       border: 'none',
-      fontSize: isMobile ? '0.6rem' : '0.65rem',
+      fontSize: isMobile ? '0.65rem' : '0.7rem',
       fontWeight: 800,
       cursor: 'pointer',
       background: active ? 'white' : 'transparent',
       color: active ? '#4169E1' : '#64748B',
-      boxShadow: active ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+      boxShadow: active ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+      transition: 'all 0.2s ease'
     })
   };
 
@@ -419,24 +366,24 @@ function Dashboard() {
     <Layout
       title={
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 900, color: '#0F172A' }}>Welcome, {adminName.split(' ')[0]}</span>
-            <span style={{ fontSize: isMobile ? '1rem' : '1.1rem' }}>👋</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: isMobile ? '1.25rem' : '1.75rem', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.5px' }}>Hi, {adminName.split(' ')[0]}</span>
+            <span style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', animation: 'wave 2s infinite' }}>👋</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: isMobile ? '0.65rem' : '0.75rem', color: '#10B981', fontWeight: 700 }}>
-            <FontAwesomeIcon icon={faCheckCircle} />
-            <span>Health System Authorized & Active</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: isMobile ? '0.7rem' : '0.85rem', color: '#10B981', fontWeight: 700, marginTop: '4px' }}>
+            <div className="status-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }}></div>
+            <span>System operational and secure</span>
           </div>
         </div>
       }
-      subtitle={<div style={{ marginTop: '8px' }}><DigitalClock /></div>}
+      subtitle={<div style={{ marginTop: '12px' }}><DigitalClock /></div>}
       actions={
-        <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
-          <button className="button button--secondary" onClick={fetchDashboardData} disabled={loading} style={{ flex: isMobile ? 1 : 'none', height: '38px', borderRadius: '10px', fontSize: '0.8rem' }}>
-            <FontAwesomeIcon icon={faSync} spin={loading} /> Sync
+        <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
+          <button className="button button--secondary glass-effect" onClick={fetchDashboardData} disabled={loading} style={{ flex: isMobile ? 1 : 'none', height: '42px', borderRadius: '12px', fontSize: '0.85rem' }}>
+            <FontAwesomeIcon icon={faSync} spin={loading} /> Refresh
           </button>
-          <button className="button button--primary" onClick={() => navigate('/patients')} style={{ flex: isMobile ? 1 : 'none', height: '38px', borderRadius: '10px', fontSize: '0.8rem' }}>
-            <FontAwesomeIcon icon={faPlus} /> Admission
+          <button className="button button--primary" onClick={() => navigate('/patients')} style={{ flex: isMobile ? 1 : 'none', height: '42px', borderRadius: '12px', fontSize: '0.85rem', boxShadow: '0 8px 16px -4px rgba(65, 105, 225, 0.4)' }}>
+            <FontAwesomeIcon icon={faPlus} /> New Admission
           </button>
         </div>
       }
@@ -445,25 +392,27 @@ function Dashboard() {
         {/* 1. TOP STATS */}
         <section className="animate-fade-in" style={ui.statsRow}>
           {stats.map((s, i) => (
-            <div key={i} onClick={() => navigate(s.path)} style={{ 
+            <div key={i} className="hover-reveal" onClick={() => navigate(s.path)} style={{ 
               ...ui.statCard, 
               background: statGradients[s.color] || statGradients['card--blue'],
               gridColumn: (isMobile && i === stats.length - 1) ? 'span 2' : 'span 1'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <div style={{ background: 'rgba(255,255,255,0.2)', padding: isMobile ? '6px' : '8px', borderRadius: '8px', fontSize: isMobile ? '0.75rem' : '0.9rem' }}><FontAwesomeIcon icon={s.icon} /></div>
-                {!isMobile && <Sparkline data={s.history} color="white" />}
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: isMobile ? '0.55rem' : '0.65rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.8 }}>{s.label}</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
-                  <h2 style={{ margin: 0, fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 900 }}>{loading ? "..." : s.value}</h2>
-                  <span style={{ fontSize: isMobile ? '0.55rem' : '0.6rem', fontWeight: 800, background: 'rgba(255,255,255,0.25)', borderRadius: '999px', padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <FontAwesomeIcon icon={getTrend(s.history).up ? faArrowUp : faArrowDown} />
-                    {getTrend(s.history).text}
-                  </span>
+                <div style={{ background: 'rgba(255,255,255,0.25)', width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '0.85rem' : '1rem' }}><FontAwesomeIcon icon={s.icon} /></div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: isMobile ? '0.6rem' : '0.65rem', fontWeight: 900, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '6px', display: 'inline-block' }}>{s.trend}</div>
+                  <MiniSparkline data={dailyTrend} />
                 </div>
               </div>
+              <div style={{ marginTop: 'auto' }}>
+                <p style={{ margin: 0, fontSize: isMobile ? '0.6rem' : '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.85, letterSpacing: '0.5px' }}>{s.label}</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+                  <h2 style={{ margin: 0, fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 900, letterSpacing: '-1px' }}>{loading ? "..." : s.value}</h2>
+                  <FontAwesomeIcon icon={faArrowUp} style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '4px' }} />
+                </div>
+              </div>
+              {/* Decorative background circle */}
+              <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', zIndex: 0 }}></div>
             </div>
           ))}
         </section>
@@ -471,121 +420,180 @@ function Dashboard() {
         <div style={ui.dashboardGrid}>
           <div className="animate-fade-in">
             {/* Main Utilization Chart */}
-            <div style={{ ...ui.reportCard, height: 'auto', minHeight: isMobile ? '300px' : '380px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: isMobile ? '30px' : '36px', height: isMobile ? '30px' : '36px', borderRadius: '8px', background: '#EEF2FF', color: '#4169E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FontAwesomeIcon icon={faChartLine} /></div>
-                  <div><h3 style={{ margin: 0, fontSize: isMobile ? '0.85rem' : '0.95rem', fontWeight: 900 }}>Utilization</h3></div>
+            <div className="hover-reveal" style={{ ...ui.reportCard, height: 'auto', minHeight: isMobile ? '320px' : '400px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="glass-effect" style={{ width: isMobile ? '36px' : '44px', height: isMobile ? '36px' : '44px', borderRadius: '12px', background: '#EEF2FF', color: '#4169E1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}><FontAwesomeIcon icon={faChartLine} /></div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: isMobile ? '0.9rem' : '1.1rem', fontWeight: 900, color: '#0F172A' }}>Service Utilization</h3>
+                    <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Tracking health center activity levels</p>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '4px', background: '#F1F5F9', padding: '3px', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px', background: '#F1F5F9', padding: '4px', borderRadius: '12px' }}>
                   {['Daily', 'Monthly', 'Yearly'].map(view => (
                     <button key={view} onClick={() => setChartView(view)} style={ui.viewPill(chartView === view)}>{view.toUpperCase()}</button>
                   ))}
                 </div>
               </div>
-              <div style={{ height: isMobile ? 200 : 280, minWidth: 0 }}>
+              <div style={{ height: isMobile ? 220 : 300, minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activeTrendData} margin={{left: isMobile ? -35 : -25, right: 10}}>
-                    <defs><linearGradient id="colorV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4169E1" stopOpacity={0.2}/><stop offset="95%" stopColor="#4169E1" stopOpacity={0}/></linearGradient></defs>
+                  <AreaChart data={activeTrendData} margin={{left: isMobile ? -30 : -20, right: 10, top: 10}}>
+                    <defs>
+                      <linearGradient id="colorV" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4169E1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#4169E1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                    <XAxis dataKey={chartView === 'Daily' ? 'date' : (chartView === 'Monthly' ? 'month' : 'year')} axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 8 : 9, fontWeight: 700, fill: '#94A3B8'}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 8 : 9, fill: '#94A3B8'}} allowDecimals={false} />
-                    <Tooltip contentStyle={{borderRadius: '10px', border: 'none', boxShadow: 'var(--shadow-lg)', fontSize: '11px'}} />
-                    <Area type="monotone" dataKey="visits" stroke="#4169E1" strokeWidth={2.5} fill="url(#colorV)" isAnimationActive={false} />
+                    <XAxis dataKey={chartView === 'Daily' ? 'date' : (chartView === 'Monthly' ? 'month' : 'year')} axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 9 : 10, fontWeight: 700, fill: '#94A3B8'}} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 9 : 10, fill: '#94A3B8'}} allowDecimals={false} />
+                    <Tooltip 
+                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: 'var(--shadow-lg)', fontSize: '12px', fontWeight: 700, padding: '12px'}}
+                      cursor={{stroke: '#4169E1', strokeWidth: 2, strokeDasharray: '5 5'}}
+                    />
+                    <Area type="monotone" dataKey="visits" stroke="#4169E1" strokeWidth={3} fill="url(#colorV)" isAnimationActive={true} animationDuration={1000} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             <div style={ui.analyticalGrid}>
-              <div style={ui.reportCard}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><FontAwesomeIcon icon={faChartBar} style={{ color: '#EF4444' }} /><span style={{ fontWeight: 800, fontSize: isMobile ? '0.75rem' : '0.8rem' }}>Top Health Concerns</span></div>
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Using simpler wording from recent consultations.</p>
+              <div className="hover-reveal" style={ui.reportCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FontAwesomeIcon icon={faChartBar} /></div>
+                  <span style={{ fontWeight: 900, fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#0F172A' }}>Top Health Concerns</span>
+                </div>
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Frequent cases diagnosed this month.</p>
                 <div style={ui.chartBox}>
                   {hasValue(morbidityData, 'count') ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={morbidityData} layout="vertical" margin={{left: isMobile ? -30 : -25, right: 15}}>
-                        <XAxis type="number" hide /><YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 7 : 8, fontWeight: 700}} width={isMobile ? 65 : 75} />
-                        <Tooltip /><Bar dataKey="count" fill="#EF4444" radius={[0, 4, 4, 0]} barSize={isMobile ? 8 : 10} isAnimationActive={false} />
+                      <BarChart data={morbidityData} layout="vertical" margin={{left: isMobile ? -25 : -15, right: 20}}>
+                        <XAxis type="number" hide /><YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 8 : 9, fontWeight: 700, fill: '#475569'}} width={isMobile ? 75 : 90} />
+                        <Tooltip cursor={{fill: '#F8FAFC'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-md)'}} />
+                        <Bar dataKey="count" fill="#EF4444" radius={[0, 6, 6, 0]} barSize={isMobile ? 10 : 12} isAnimationActive={true} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.72rem', fontWeight: 700 }}>No morbidity data available yet.</div>
+                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.75rem', fontWeight: 700, gap: '8px' }}>
+                      <FontAwesomeIcon icon={faSync} style={{ opacity: 0.5 }} /> No data available
+                    </div>
                   )}
                 </div>
               </div>
-              <div style={ui.reportCard}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><FontAwesomeIcon icon={faNotesMedical} style={{ color: '#4169E1' }} /><span style={{ fontWeight: 800, fontSize: isMobile ? '0.75rem' : '0.8rem' }}>Program Share</span></div>
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Service distribution across major health programs.</p>
+
+              <div className="hover-reveal" style={ui.reportCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F0F9FF', color: '#4169E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FontAwesomeIcon icon={faNotesMedical} /></div>
+                  <span style={{ fontWeight: 900, fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#0F172A' }}>Program Share</span>
+                </div>
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Distribution of medical services.</p>
                 <div style={{ ...ui.chartBox, display: 'flex', alignItems: 'center', flexDirection: 'row', gap: isMobile ? '0.5rem' : 0 }}>
-                  <div style={{ width: isMobile ? '45%' : '50%', height: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={programShareData} innerRadius={isMobile ? 24 : 30} outerRadius={isMobile ? 40 : 50} paddingAngle={5} dataKey="value" isAnimationActive={false}>{programShareData.map((e, i) => <Cell key={i} fill={e.color} stroke="none" />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>
+                  <div style={{ width: isMobile ? '50%' : '55%', height: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={programShareData} innerRadius={isMobile ? 35 : 45} outerRadius={isMobile ? 55 : 65} paddingAngle={8} dataKey="value" isAnimationActive={true}>
+                          {programShareData.map((e, i) => <Cell key={i} fill={e.color} stroke="none" />)}
+                        </Pie>
+                        <Tooltip contentStyle={{borderRadius: '12px', border: 'none'}} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div style={{ width: isMobile ? '55%' : '50%', paddingLeft: isMobile ? '2px' : '5px' }}>{programShareData.map((p, i) => <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: isMobile ? '0.58rem' : '0.64rem', fontWeight: 800, marginBottom: '4px' }}><span style={{ width: '6px', height: '6px', borderRadius: '1px', background: p.color }}></span><span>{p.name}: {p.value}%</span></div>)}</div>
+                  <div style={{ width: isMobile ? '50%' : '45%', paddingLeft: isMobile ? '4px' : '10px' }}>
+                    {programShareData.map((p, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: isMobile ? '0.65rem' : '0.75rem', fontWeight: 800, marginBottom: '8px', color: '#334155' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: p.color }}></span>
+                        <span>{p.name}: {p.value}%</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div style={ui.reportCard}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><FontAwesomeIcon icon={faUsers} style={{ color: '#0EA5E9' }} /><span style={{ fontWeight: 800, fontSize: isMobile ? '0.75rem' : '0.8rem' }}>Patient Profiles</span></div>
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Population mix by age group.</p>
-                <div style={ui.chartBox}>{hasValue(profileData, 'value') ? <ResponsiveContainer width="100%" height="100%"><BarChart data={profileData}><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 7 : 8, fontWeight: 700}} /><YAxis hide /><Tooltip /><Bar dataKey="value" fill="#0EA5E9" radius={[3, 3, 0, 0]} barSize={isMobile ? 14 : 18} isAnimationActive={false} /></BarChart></ResponsiveContainer> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.72rem', fontWeight: 700 }}>No profile data available yet.</div>}</div>
+
+              <div className="hover-reveal" style={ui.reportCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F0FDF4', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FontAwesomeIcon icon={faUsers} /></div>
+                  <span style={{ fontWeight: 900, fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#0F172A' }}>Patient Profiles</span>
+                </div>
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Age demographics overview.</p>
+                <div style={ui.chartBox}>
+                  {hasValue(profileData, 'value') ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={profileData} margin={{bottom: 5, top: 20}}>
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 7 : 8, fontWeight: 700, fill: '#475569'}} dy={5} />
+                        <YAxis hide />
+                        <Tooltip cursor={{fill: '#F8FAFC'}} contentStyle={{borderRadius: '12px', border: 'none'}} />
+                        <Bar dataKey="value" fill="#0EA5E9" radius={[6, 6, 0, 0]} barSize={isMobile ? 20 : 24} isAnimationActive={true}>
+                          {/* Label added to show counts on top of bars */}
+                          <LabelList dataKey="value" position="top" style={{ fill: '#64748B', fontSize: '10px', fontWeight: 800 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.75rem', fontWeight: 700 }}>No profile data</div>
+                  )}
+                </div>
               </div>
-              <div style={ui.reportCard}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><FontAwesomeIcon icon={faMapMarkerAlt} style={{ color: '#8B5CF6' }} /><span style={{ fontWeight: 800, fontSize: isMobile ? '0.75rem' : '0.8rem' }}>Purok Density</span></div>
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Resident count per purok for area planning.</p>
-                <div style={ui.chartBox}>{hasValue(densityData, 'value') ? <ResponsiveContainer width="100%" height="100%"><BarChart data={densityData} layout="vertical" margin={{left: isMobile ? -30 : -25, right: 15}}><XAxis type="number" hide /><YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 7 : 8, fontWeight: 700}} width={isMobile ? 65 : 75} /><Tooltip /><Bar dataKey="value" fill="#8B5CF6" radius={[0, 4, 4, 0]} barSize={isMobile ? 8 : 10} isAnimationActive={false} /></BarChart></ResponsiveContainer> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.72rem', fontWeight: 700 }}>No purok data available yet.</div>}</div>
+
+              <div className="hover-reveal" style={ui.reportCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FontAwesomeIcon icon={faMapMarkerAlt} /></div>
+                  <span style={{ fontWeight: 900, fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#0F172A' }}>Purok Density</span>
+                </div>
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Distribution per area.</p>
+                <div style={ui.chartBox}>
+                  {hasValue(densityData, 'value') ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={densityData} layout="vertical" margin={{left: isMobile ? -25 : -15, right: 20}}>
+                        <XAxis type="number" hide /><YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: isMobile ? 8 : 9, fontWeight: 700, fill: '#475569'}} width={isMobile ? 75 : 90} />
+                        <Tooltip cursor={{fill: '#F8FAFC'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-md)'}} />
+                        <Bar dataKey="value" fill="#8B5CF6" radius={[0, 6, 6, 0]} barSize={isMobile ? 10 : 12} isAnimationActive={true} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.75rem', fontWeight: 700 }}>No purok data</div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1rem' : '1.25rem' }}>
-            <div style={{ ...ui.reportCard, background: 'linear-gradient(135deg, #1E293B, #0F172A)', border: 'none', color: 'white', minHeight: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.25rem' : '1.75rem' }}>
+            <div className="glass-effect" style={{ ...ui.reportCard, background: 'linear-gradient(135deg, #1E293B, #0F172A)', border: 'none', color: 'white', minHeight: 'auto', boxShadow: 'var(--shadow-lg)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
                 <div>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 900, margin: 0 }}>Hub</h3>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.68rem', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Quick access to common actions.</p>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 900, margin: 0, letterSpacing: '0.5px' }}>Command Center</h3>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>Fast tracks for your daily workflow.</p>
                 </div>
-                <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#93C5FD', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '999px' }}>Quick Tools</span>
+                <div className="status-pulse" style={{ padding: '4px 10px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#93C5FD', fontSize: '0.65rem', fontWeight: 900 }}>READY</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
-                <button className="button" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '0.65rem' : '0.72rem', borderRadius: '12px', minHeight: isMobile ? '60px' : '74px' }} onClick={() => navigate('/census')}><FontAwesomeIcon icon={faUsers} style={{ color: '#638EF1', marginBottom: '4px' }} /><br/>Census</button>
-                <button className="button" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '0.65rem' : '0.72rem', borderRadius: '12px', minHeight: isMobile ? '60px' : '74px' }} onClick={() => navigate('/announcements')}><FontAwesomeIcon icon={faBullhorn} style={{ color: '#F87171', marginBottom: '4px' }} /><br/>Alerts</button>
-                <button className="button" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '0.65rem' : '0.72rem', borderRadius: '12px', minHeight: isMobile ? '60px' : '74px' }} onClick={() => navigate('/records')}><FontAwesomeIcon icon={faFileMedical} style={{ color: '#FBBF24', marginBottom: '4px' }} /><br/>Records</button>
-                <button className="button" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '0.65rem' : '0.72rem', borderRadius: '12px', minHeight: isMobile ? '60px' : '74px' }} onClick={() => navigate('/events')}><FontAwesomeIcon icon={faCalendarAlt} style={{ color: '#34D399', marginBottom: '4px' }} /><br/>Programs</button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+                {[
+                  { label: "Census", icon: faUsers, color: "#638EF1", path: "/census" },
+                  { label: "Alerts", icon: faBullhorn, color: "#F87171", path: "/announcements" },
+                  { label: "Records", icon: faFileMedical, color: "#FBBF24", path: "/records" },
+                  { label: "Programs", icon: faCalendarAlt, color: "#34D399", path: "/events" }
+                ].map((item, idx) => (
+                  <button key={idx} className="button interactive-item" style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: isMobile ? '10px' : '14px', fontSize: isMobile ? '0.7rem' : '0.8rem', borderRadius: '16px', minHeight: isMobile ? '70px' : '85px', flexDirection: 'column', gap: '6px' }} onClick={() => navigate(item.path)}>
+                    <FontAwesomeIcon icon={item.icon} style={{ color: item.color, fontSize: '1.1rem' }} />
+                    <span style={{ fontWeight: 700 }}>{item.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
+
             <Calendar events={rawEvents} schedules={rawSchedules} appointments={rawAppointments} />
-            <div style={{ ...ui.reportCard, minHeight: 'auto' }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 900, marginBottom: '0.25rem' }}>Upcoming Programs</h3>
-              <p style={{ margin: '0 0 0.75rem', fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Coming next in the schedule.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {upcomingEvents.map((e, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#F1F5F9', color: e.type === 'Appointment' ? '#2563EB' : e.type === 'Schedule' ? '#8B5CF6' : '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.7rem' }}><FontAwesomeIcon icon={faCalendarDay} /></div>
-                    <div style={{ flex: 1, minWidth: 0 }}><p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</p><p style={{ margin: 0, fontSize: '0.6rem', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.type} • {e.date}</p></div>
-                  </div>
-                ))}
-                {upcomingEvents.length === 0 && <div style={{ color: '#94A3B8', fontSize: '0.7rem', fontWeight: 700 }}>No upcoming items.</div>}
-              </div>
-            </div>
-            <div style={{ ...ui.reportCard, minHeight: 'auto' }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 900, marginBottom: '0.25rem' }}>Activity Log</h3>
-              <p style={{ margin: '0 0 0.75rem', fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Recent updates and actions.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {recentActivity.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#F1F5F9', color: a.type === 'alert' ? '#EF4444' : a.type === 'appointment' ? '#2563EB' : a.type === 'schedule' ? '#8B5CF6' : '#4169E1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.7rem' }}><FontAwesomeIcon icon={a.type === 'alert' ? faBullhorn : a.type === 'appointment' || a.type === 'schedule' ? faCalendarDay : faFileMedical} /></div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.user} • {a.action}</p>
-                      <p style={{ margin: 0, fontSize: '0.6rem', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.event} • {a.time}</p>
-                    </div>
-                  </div>
-                ))}
-                {recentActivity.length === 0 && <div style={{ color: '#94A3B8', fontSize: '0.7rem', fontWeight: 700 }}>No recent updates.</div>}
-              </div>
-            </div>
           </div>
         </div>
       </div>
+      <style>{`
+        @keyframes wave {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(-10deg); }
+          75% { transform: rotate(10deg); }
+        }
+        .timeline-item { transition: all 0.2s; }
+        .timeline-item:hover { background: #F8FAFC; transform: translateX(4px); }
+      `}</style>
     </Layout>
   );
 }

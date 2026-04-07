@@ -221,6 +221,7 @@ export default function Records() {
               <thead>
                 <tr>
                   <th style={{ padding: '1rem 1.25rem' }}>Patient Directory</th>
+                  <th>Age</th>
                   <th>Latest Diagnosis</th>
                   <th>Primary Treatment</th>
                   <th>Attending Provider</th>
@@ -245,6 +246,7 @@ export default function Records() {
                         </div>
                       </div>
                     </td>
+                    <td><div style={{ fontWeight: 700, color: '#475569' }}>{r.patient?.age ? `${r.patient.age}y` : '--'}</div></td>
                     <td>
                       <span style={{ fontWeight: 800, color: '#EF4444', background: '#FEF2F2', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem' }}>
                           <FontAwesomeIcon icon={faStethoscope} style={{ marginRight: '6px' }} />

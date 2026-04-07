@@ -12,15 +12,8 @@ exports.getPatients = async (req, res) => {
 
 // Add new patient
 exports.addPatient = async (req, res) => {
-  const patient = new Patient({
-    name: req.body.name,
-    age: req.body.age,
-    gender: req.body.gender,
-    address: req.body.address,
-    contact: req.body.contact,
-  });
-
   try {
+    const patient = new Patient(req.body);
     const newPatient = await patient.save();
     res.status(201).json(newPatient);
   } catch (err) {

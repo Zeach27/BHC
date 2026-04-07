@@ -253,10 +253,6 @@ function TopNavbar({ onMenuClick }) {
         <button className="icon-button mobile-only" onClick={onMenuClick} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
           <FontAwesomeIcon icon={faBars} />
         </button>
-        <div className="top-nav__search hide-on-mobile">
-          <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
-          <input placeholder="Search records, events..." />
-        </div>
       </div>
 
       <div className="top-nav__actions">
