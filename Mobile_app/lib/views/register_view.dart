@@ -18,6 +18,7 @@ class _RegisterViewState extends State<RegisterView> {
   String _selectedCivilStatus = "Single";
 
   // Contact Info
+  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   String? _selectedBarangay;
   final _streetController = TextEditingController();
@@ -32,6 +33,7 @@ class _RegisterViewState extends State<RegisterView> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     _streetController.dispose();
     _passwordController.dispose();
@@ -50,7 +52,7 @@ class _RegisterViewState extends State<RegisterView> {
     final viewModel = Provider.of<AuthViewModel>(context, listen: false);
     final success = await viewModel.register(
       _fullNameController.text.trim(),
-      _phoneController.text.trim(),
+      _emailController.text.trim(),
       _passwordController.text,
     );
 
@@ -293,6 +295,9 @@ class _RegisterViewState extends State<RegisterView> {
                 content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildLabel('EMAIL'),
+                    _buildTextField(controller: _emailController, hintText: 'name@example.com', keyboardType: TextInputType.emailAddress),
+                    const SizedBox(height: 16),
                     _buildLabel('PHONE NUMBER'),
                     Row(
                       children: [

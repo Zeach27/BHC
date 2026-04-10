@@ -24,8 +24,7 @@ export default function Announcements() {
   const [filterTab, setFilterTab] = useState("All"); 
   
   const [formData, setFormData] = useState({
-    title: "", content: "", category: "General", priority: "Medium",
-    date: "", startTime: "", location: "", target: "All Residents", isPinned: false
+    title: "", content: "", category: "General", priority: "Medium", author: ""
   });
 
   useEffect(() => {
@@ -63,11 +62,12 @@ export default function Announcements() {
           content: item.content || item.description,
           category: item.category || "General",
           priority: item.priority || "Medium",
+          author: item.author || "",
           date: item.date || "",
           startTime: item.startTime || "",
+          endTime: item.endTime || "",
           location: item.location || "",
-          target: item.target || "All Residents",
-          isPinned: item.isPinned || false
+          capacityTotal: item.capacityTotal || 0
       });
       setIsModalOpen(true);
   };
@@ -80,16 +80,16 @@ export default function Announcements() {
           content: formData.content,
           category: formData.category,
           priority: formData.priority,
-          target: formData.target,
-          isPinned: formData.isPinned
+          author: formData.author
       } : {
           title: formData.title,
           description: formData.content,
           date: formData.date,
           startTime: formData.startTime,
+          endTime: formData.endTime,
           location: formData.location,
           category: formData.category,
-          target: formData.target
+          capacityTotal: formData.capacityTotal || 0
       };
 
       const api = postType === "announcement" ? ANN_API : EVT_API;
@@ -108,7 +108,7 @@ export default function Announcements() {
   const resetForm = () => {
       setIsEditing(false);
       setCurrentId(null);
-      setFormData({ title: "", content: "", category: "General", priority: "Medium", date: "", startTime: "", location: "", target: "All Residents", isPinned: false });
+      setFormData({ title: "", content: "", category: "General", priority: "Medium", author: "", date: "", startTime: "", endTime: "", location: "", capacityTotal: 0 });
   };
 
   const handleDelete = async (id, type) => {
@@ -310,18 +310,35 @@ export default function Announcements() {
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <input placeholder="Headline" value={formData.title} required style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '1rem', fontWeight: 600 }} onChange={e => setFormData({...formData, title: e.target.value})} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <select value={formData.target} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, target: e.target.value})}>
-                      <option value="All Residents">General Residents</option>
-                      <option value="Infants & Children">Children / Pediatric</option>
-                      <option value="Pregnant Women">Pregnant Patients</option>
-                      <option value="Senior Citizens">Senior Citizens</option>
-                  </select>
-                  <select value={formData.priority} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, priority: e.target.value})}>
-                      <option value="Low">Standard Info</option>
-                      <option value="Medium">Important Update</option>
-                      <option value="High">Urgent / Emergency</option>
-                  </select>
+              <div style={{ display: 'grid', gridTemplateColumns: postType === 'announcement' ? '1fr 1fr' : '1fr 1fr 1fr', gap: '12px' }}>
+                  {postType === 'announcement' ? (
+                      <>
+                          <select value={formData.category} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, category: e.target.value})}>
+                              <option value="General">General</option>
+                              <option value="Health Alert">Health Alert</option>
+                              <option value="Event">Event</option>
+                          </select>
+                          <select value={formData.priority} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, priority: e.target.value})}>
+                              <option value="Low">Standard Info</option>
+                              <option value="Medium">Important Update</option>
+                              <option value="High">Urgent / Emergency</option>
+                          </select>
+                      </>
+                  ) : (
+                      <>
+                          <select value={formData.target} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, target: e.target.value})}>
+                              <option value="All Residents">General Residents</option>
+                              <option value="Infants & Children">Children / Pediatric</option>
+                              <option value="Pregnant Women">Pregnant Patients</option>
+                              <option value="Senior Citizens">Senior Citizens</option>
+                          </select>
+                          <select value={formData.priority} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: 'white', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, priority: e.target.value})}>
+                              <option value="Low">Standard Info</option>
+                              <option value="Medium">Important Update</option>
+                              <option value="High">Urgent / Emergency</option>
+                          </select>
+                      </>
+                  )}
               </div>
               {postType === 'event' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -329,11 +346,22 @@ export default function Announcements() {
                       <input placeholder="Logistics Venue" value={formData.location} required style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, location: e.target.value})} />
                   </div>
               )}
+              {postType === 'event' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <input type="time" placeholder="Start Time" value={formData.startTime} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, startTime: e.target.value})} />
+                      <input type="time" placeholder="End Time" value={formData.endTime} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '0.75rem' }} onChange={e => setFormData({...formData, endTime: e.target.value})} />
+                  </div>
+              )}
+              {postType === 'announcement' && (
+                  <input placeholder="Author (optional)" value={formData.author} style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '0.875rem' }} onChange={e => setFormData({...formData, author: e.target.value})} />
+              )}
               <textarea placeholder="Instruction details..." value={formData.content} required style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #E2E8F0', minHeight: '120px', outline: 'none', fontSize: '0.875rem', lineHeight: 1.6 }} onChange={e => setFormData({...formData, content: e.target.value})} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input type="checkbox" id="pinPost" checked={formData.isPinned} onChange={e => setFormData({...formData, isPinned: e.target.checked})} style={{ width: '18px', height: '18px' }} />
-                  <label htmlFor="pinPost" style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Pin this intel to the top of the feed</label>
-              </div>
+              {postType === 'event' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input type="checkbox" id="pinPost" checked={formData.isPinned} onChange={e => setFormData({...formData, isPinned: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                      <label htmlFor="pinPost" style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Pin this intel to the top of the feed</label>
+                  </div>
+              )}
               <button type="submit" className="button button--primary" style={{ width: '100%' }}>
                 {isEditing ? 'COMMIT UPDATES' : 'PUBLISH INTEL'}
               </button>

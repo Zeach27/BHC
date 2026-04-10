@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 
 class NewsDetailsView extends StatelessWidget {
@@ -8,8 +8,10 @@ class NewsDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tagColor = item['color'] ?? Colors.red;
+    final tagColor = item['color'] is Color ? item['color'] as Color : const Color(0xFFEF4444);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final createdAt = item['createdAt'] != null ? DateTime.tryParse(item['createdAt'] as String) : null;
+    final postedText = createdAt != null ? '${createdAt.month}/${createdAt.day}/${createdAt.year}' : 'N/A';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -78,9 +80,8 @@ class NewsDetailsView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
                   Text(
-                    item['title'] ?? 'Dengue Prevention Measures sa ating Barangay',
+                    item['title'] ?? 'Announcement',
                     style: TextStyle(
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 22,
@@ -89,13 +90,12 @@ class NewsDetailsView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   Row(
                     children: [
                       const Icon(Icons.calendar_today, size: 14, color: AppTheme.primaryBlue),
                       const SizedBox(width: 6),
                       Text(
-                        'Posted: March 25, 2025',
+                        'Posted: $postedText',
                         style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -106,7 +106,7 @@ class NewsDetailsView extends StatelessWidget {
                       const Icon(Icons.access_time_filled, size: 14, color: Color(0xFFB45309)),
                       const SizedBox(width: 6),
                       Text(
-                        'Expires: April 10, 2025',
+                        'Status: ${item['tag'] ?? 'N/A'}',
                         style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -114,9 +114,8 @@ class NewsDetailsView extends StatelessWidget {
                   const SizedBox(height: 20),
                   Divider(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.1)),
                   const SizedBox(height: 20),
-
                   Text(
-                    _getMockContent(item['title'] ?? ''),
+                    item['content'] ?? item['description'] ?? 'No additional details available.',
                     style: TextStyle(
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 14,
@@ -124,9 +123,7 @@ class NewsDetailsView extends StatelessWidget {
                       height: 1.6,
                     ),
                   ),
-                  
                   const SizedBox(height: 24),
-
                   Container(
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF0F3224) : const Color(0xFFECFDF5),
@@ -164,7 +161,6 @@ class NewsDetailsView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 40),
-
                   Row(
                     children: [
                       Container(
@@ -188,9 +184,9 @@ class NewsDetailsView extends StatelessWidget {
                               letterSpacing: 0.5,
                             ),
                           ),
-                          const Text(
-                            'Barangay Health Center',
-                            style: TextStyle(
+                          Text(
+                            item['author'] ?? 'Barangay Health Center',
+                            style: const TextStyle(
                               color: AppTheme.primaryBlue,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -201,7 +197,6 @@ class NewsDetailsView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -227,17 +222,5 @@ class NewsDetailsView extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _getMockContent(String title) {
-    if (title.contains('Sanggol')) {
-      return 'Mahalagang anunsyo para sa lahat ng mga magulang na may sanggol na wala pang isang taon! Ang Barangay Health Center ay magsasagawa ng malawakang programa para sa libreng pagbabakuna upang masiguro ang kalusugan ng ating mga chikiting.\n\n'
-             'Dalhin po lamang ang inyong Baby Book at pumunta sa Health Center mula 8:00 AM hanggang 12:00 PM. Siguraduhing may suot na mask at sundin ang physical distancing sa loob ng pasilidad.\n\n'
-             'Ang inyong pakikiisa ay lubos naming pinapahalagahan. Sama-sama nating protektahan ang kalusugan ng ating mga anak!';
-    }
-    
-    return 'Mainit na pagbati sa lahat ng ating mga ka-Barangay. Dahil sa pagpasok ng panahon ng pag-ulan, muling nagpapaalala ang ating Barangay Health Center (BHC) tungkol sa panganib na dulot ng sakit na Dengue. Mahalaga ang kooperasyon ng bawat isa upang mapanatiling ligtas at malusog ang ating komunidad.\n\n'
-           'Hinihikayat namin ang lahat na maging mapagmatyag sa paligid. Siguraduhin nating walang stagnant water o mga nakaimbak na tubig sa ating bakuran kung saan maaaring mangitlog ang mga lamok. Linisin ang mga gutter, plorera, at mga lumang gulong.\n\n'
-           'Pinapayuhan din ang bawat pamilya na gumamit ng mosquito nets (kulambo) lalo na sa pagtulog ng mga bata, at magsuot ng mga damit na mahaba ang manggas para sa proteksyon.';
   }
 }

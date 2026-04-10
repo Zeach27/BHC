@@ -1,38 +1,51 @@
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 
-class HealthView extends StatelessWidget {
+class HealthView extends StatefulWidget {
   const HealthView({Key? key}) : super(key: key);
+
+  @override
+  State<HealthView> createState() => _HealthViewState();
+}
+
+class _HealthViewState extends State<HealthView> {
+  Future<void> _refreshHealth() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildPregnancyTrackerCard(context),
-              const SizedBox(height: 16),
-              _buildInsightCard(context),
-              const SizedBox(height: 16),
-              _buildVitalsGrid(context),
-              const SizedBox(height: 24),
-              _buildSectionTitle(context, 'Upcoming Visit'),
-              const SizedBox(height: 16),
-              _buildUpcomingVisitCard(context),
-              const SizedBox(height: 24),
-              _buildSectionTitle(context, 'Visit History', actionText: 'See all visits'),
-              const SizedBox(height: 16),
-              _buildHistoryCard(context, 'March 10, 2025', 'Week 20 • BHW Maria Santos'),
-              const SizedBox(height: 12),
-              _buildHistoryCard(context, 'February 08, 2025', 'Week 16 • BHW Maria Santos'),
-              const SizedBox(height: 32),
-              _buildDangerSignsButton(context),
-              const SizedBox(height: 32),
-            ],
+      body: RefreshIndicator(
+        onRefresh: _refreshHealth,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildPregnancyTrackerCard(context),
+                const SizedBox(height: 16),
+                _buildInsightCard(context),
+                const SizedBox(height: 16),
+                _buildVitalsGrid(context),
+                const SizedBox(height: 24),
+                _buildSectionTitle(context, 'Upcoming Visit'),
+                const SizedBox(height: 16),
+                _buildUpcomingVisitCard(context),
+                const SizedBox(height: 24),
+                _buildSectionTitle(context, 'Visit History', actionText: 'See all visits'),
+                const SizedBox(height: 16),
+                _buildHistoryCard(context, 'March 10, 2025', 'Week 20 • BHW Maria Santos'),
+                const SizedBox(height: 12),
+                _buildHistoryCard(context, 'February 08, 2025', 'Week 16 • BHW Maria Santos'),
+                const SizedBox(height: 32),
+                _buildDangerSignsButton(context),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),

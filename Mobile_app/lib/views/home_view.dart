@@ -1,44 +1,141 @@
 import 'package:flutter/material.dart';
+import '../models/announcement.dart';
+import '../models/event.dart';
+import '../services/api_service.dart';
 import '../utils/theme.dart';
 import 'news_details_view.dart';
 
-class HomeView extends StatelessWidget {
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
+
+  @override
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  Announcement? _healthAlert;
+  EventItem? _nextEvent;
+  bool _isLoading = true;
+  bool _hasError = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHomeContent();
+  }
+
+  Future<void> _loadHomeContent() async {
+    try {
+      final announcements = await ApiService().fetchAnnouncements();
+      final events = await ApiService().fetchEvents();
+
+      final healthAlerts = announcements
+          .where((item) => item.category == 'Health Alert')
+          .toList();
+      healthAlerts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      final upcomingEvents = events.where((event) {
+        final date = _parseDate(event.date);
+        return date != null && !date.isBefore(DateTime.now());
+      }).toList();
+      upcomingEvents.sort((a, b) {
+        final aDate = _parseDate(a.date) ?? DateTime(2100);
+        final bDate = _parseDate(b.date) ?? DateTime(2100);
+        return aDate.compareTo(bDate);
+      });
+
+      setState(() {
+        _healthAlert = healthAlerts.isNotEmpty ? healthAlerts.first : null;
+        _nextEvent = upcomingEvents.isNotEmpty ? upcomingEvents.first : (events.isNotEmpty ? events.first : null);
+        _isLoading = false;
+        _hasError = false;
+        _errorMessage = null;
+      });
+    } catch (error) {
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+        _errorMessage = error.toString();
+      });
+    }
+  }
+
+  Future<void> _refreshHome() async {
+    await _loadHomeContent();
+  }
+
+  DateTime? _parseDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return null;
+    return DateTime.tryParse(dateString);
+  }
+
+  String _formatEventDate(EventItem event) {
+    final date = _parseDate(event.date);
+    if (date == null) {
+      return 'TBA';
+    }
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final month = months[date.month - 1];
+    final day = date.day.toString().padLeft(2, '0');
+    final time = event.startTime != null && event.startTime!.isNotEmpty ? event.startTime : 'TBA';
+    return '$month $day • $time';
+  }
+
+  Color _categoryColor(String category) {
+    switch (category) {
+      case 'Health Alert':
+        return const Color(0xFFEF4444);
+      case 'Event':
+        return const Color(0xFFF59E0B);
+      default:
+        return AppTheme.primaryBlue;
+    }
+  }
+
+  String _shortenContent(String content) {
+    final trimmed = content.trim();
+    if (trimmed.length <= 90) return trimmed;
+    return '${trimmed.substring(0, 90).trim()}...';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 16),
-              _buildGreeting(context),
-              const SizedBox(height: 16),
-              _buildAlertBanner(context),
-              const SizedBox(height: 24),
-              
-              _buildSectionTitle(context, 'Quick Actions'),
-              const SizedBox(height: 16),
-              _buildQuickActionsGrid(context),
-              const SizedBox(height: 24),
-
-              _buildSectionTitle(context, 'Next Appointment'),
-              const SizedBox(height: 16),
-              _buildNextAppointmentCard(context),
-              const SizedBox(height: 24),
-
-              _buildSectionTitle(context, 'Barangay Events', actionText: 'View all'),
-              const SizedBox(height: 16),
-              _buildEventCard(context),
-              const SizedBox(height: 24),
-
-              _buildHealthTipCard(context),
-              const SizedBox(height: 32),
-            ],
+      body: RefreshIndicator(
+        onRefresh: _refreshHome,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                _buildGreeting(context),
+                const SizedBox(height: 16),
+                _buildAlertBanner(context),
+                const SizedBox(height: 24),
+                _buildSectionTitle(context, 'Quick Actions'),
+                const SizedBox(height: 16),
+                _buildQuickActionsGrid(context),
+                const SizedBox(height: 24),
+                _buildSectionTitle(context, 'Next Appointment'),
+                const SizedBox(height: 16),
+                _buildNextAppointmentCard(context),
+                const SizedBox(height: 24),
+                _buildSectionTitle(context, 'Barangay Events', actionText: 'View all'),
+                const SizedBox(height: 16),
+                _buildEventCard(context),
+                const SizedBox(height: 24),
+                _buildHealthTipCard(context),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
@@ -84,6 +181,14 @@ class HomeView extends StatelessWidget {
   }
 
   Widget _buildAlertBanner(BuildContext context) {
+    final hasAlert = _healthAlert != null;
+    final title = hasAlert ? _healthAlert!.title : 'Dengue Awareness\nWeek';
+    final description = hasAlert
+        ? (_healthAlert!.content.isNotEmpty ? _healthAlert!.content : 'Keep your surroundings clean.\nImplement the 4S strategy today\nto protect your family.')
+        : 'Keep your surroundings clean.\nImplement the 4S strategy today\nto protect your family.';
+    final actionColor = hasAlert ? _categoryColor(_healthAlert!.category) : const Color(0xFFF59E0B);
+    final tagColor = hasAlert ? _categoryColor(_healthAlert!.category) : Colors.red;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -128,9 +233,9 @@ class HomeView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Dengue Awareness\nWeek',
-                style: TextStyle(
+              Text(
+                title,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -138,9 +243,9 @@ class HomeView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Keep your surroundings clean.\nImplement the 4S strategy today\nto protect your family.',
-                style: TextStyle(
+              Text(
+                description,
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -150,7 +255,7 @@ class HomeView extends StatelessWidget {
               const SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B), 
+                  backgroundColor: actionColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   elevation: 0,
@@ -160,11 +265,19 @@ class HomeView extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const NewsDetailsView(
+                      builder: (context) => NewsDetailsView(
                         item: {
                           'tag': 'PUBLIC HEALTH ALERT',
-                          'title': 'Dengue Awareness Week',
-                          'color': Colors.red,
+                          'title': title,
+                          'description': description,
+                          'time': hasAlert
+                              ? _healthAlert!.createdAt.toIso8601String()
+                              : DateTime.now().toIso8601String(),
+                          'isPinned': hasAlert && _healthAlert!.priority == 'High',
+                          'color': tagColor,
+                          'content': description,
+                          'createdAt': hasAlert ? _healthAlert!.createdAt.toIso8601String() : DateTime.now().toIso8601String(),
+                          'author': hasAlert ? _healthAlert!.author : 'Barangay Health Center',
                         },
                       ),
                     ),
@@ -344,6 +457,13 @@ class HomeView extends StatelessWidget {
   }
 
   Widget _buildEventCard(BuildContext context) {
+    final hasEvent = _nextEvent != null;
+    final title = hasEvent ? _nextEvent!.title : 'Senior Citizens Wellness Day';
+    final description = hasEvent
+        ? (_nextEvent!.description?.isNotEmpty == true ? _nextEvent!.description! : _nextEvent!.location ?? 'Barangay health event')
+        : 'Free Check-up & Zumba Session';
+    final badgeText = hasEvent ? _formatEventDate(_nextEvent!) : 'Oct 15 • 7:00 AM';
+
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -360,13 +480,13 @@ class HomeView extends StatelessWidget {
       child: Row(
         children: [
           ClipRTRoundedRectangle(
-             borderRadius: BorderRadius.circular(10),
-             child: Image.network(
-               'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=150&auto=format&fit=crop',
-               width: 70,
-               height: 70,
-               fit: BoxFit.cover,
-             ),
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=150&auto=format&fit=crop',
+              width: 70,
+              height: 70,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -374,7 +494,7 @@ class HomeView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Senior Citizens Wellness Day',
+                  title,
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodyLarge?.color,
                     fontSize: 13,
@@ -383,7 +503,7 @@ class HomeView extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Free Check-up & Zumba Session',
+                  description.isNotEmpty ? description : 'Barangay health event',
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                     fontSize: 11,
@@ -397,7 +517,7 @@ class HomeView extends StatelessWidget {
                     color: AppTheme.primaryBlue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('Oct 15 • 7:00 AM', style: TextStyle(color: AppTheme.primaryBlue, fontSize: 10, fontWeight: FontWeight.w700)),
+                  child: Text(badgeText, style: const TextStyle(color: AppTheme.primaryBlue, fontSize: 10, fontWeight: FontWeight.w700)),
                 )
               ],
             ),

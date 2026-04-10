@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import '../models/announcement.dart';
+import '../services/api_service.dart';
 import '../utils/theme.dart';
 import 'news_details_view.dart';
 
@@ -11,42 +13,21 @@ class NewsView extends StatefulWidget {
 
 class _NewsViewState extends State<NewsView> {
   String _selectedCategory = 'All';
-  final List<String> _categories = ['All', 'Health Alert', 'Events', 'General'];
+  final List<String> _categories = ['All', 'Health Alert', 'Event', 'General'];
+  late Future<List<Announcement>> _announcementsFuture;
 
-  final List<Map<String, dynamic>> _newsItems = [
-    {
-      'tag': 'HEALTH ALERT',
-      'title': 'Dengue Prevention Drive',
-      'description': 'Dahil sa pag-ulan, mag-ingat sa mga nakatambak na tubig. Isagawa ang 4S strategy sa inyong bakuran.',
-      'time': '2 hours ago',
-      'isPinned': true,
-      'color': Colors.red,
-    },
-    {
-      'tag': 'HEALTH ALERT',
-      'title': 'Libreng Bakuna para sa Sanggol',
-      'description': 'Magkakaroon ng libreng pagbabakuna ngayong darating na Lunes, alas-otso ng...',
-      'time': '3 hours ago',
-      'isPinned': false,
-      'color': Colors.red,
-    },
-    {
-      'tag': 'EVENTS',
-      'title': 'Buntis Congress 2026',
-      'description': 'Inaanyayahan ang lahat ng mga nagdadalang-tao na dumalo sa ating annu...',
-      'time': '5 hours ago',
-      'isPinned': false,
-      'color': Colors.orange,
-    },
-    {
-      'tag': 'GENERAL',
-      'title': 'New Schedule of Consultations',
-      'description': 'Simula sa susunod na buwan, magkakaroon tayo ng bagong oras para sa regular check-...',
-      'time': '1 day ago',
-      'isPinned': false,
-      'color': Colors.green,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _announcementsFuture = ApiService().fetchAnnouncements();
+  }
+
+  Future<void> _refreshAnnouncements() async {
+    setState(() {
+      _announcementsFuture = ApiService().fetchAnnouncements();
+    });
+    await _announcementsFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,14 +40,62 @@ class _NewsViewState extends State<NewsView> {
             _buildCategories(),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                itemCount: _newsItems.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final item = _newsItems[index];
-                  return _buildNewsCard(item);
-                },
+              child: RefreshIndicator(
+                onRefresh: _refreshAnnouncements,
+                child: FutureBuilder<List<Announcement>>(
+                  future: _announcementsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        children: [
+                          Center(
+                            child: Text(
+                              'Unable to load announcements.\n${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    final announcements = snapshot.data ?? [];
+                    final filteredAnnouncements = _selectedCategory == 'All'
+                        ? announcements
+                        : announcements.where((announcement) => announcement.category == _selectedCategory).toList();
+
+                    if (filteredAnnouncements.isEmpty) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        children: [
+                          Center(
+                            child: Text(
+                              'No announcements found for "$_selectedCategory".',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      itemCount: filteredAnnouncements.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final item = filteredAnnouncements[index];
+                        return _buildNewsCard(item);
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -115,16 +144,26 @@ class _NewsViewState extends State<NewsView> {
     );
   }
 
-  Widget _buildNewsCard(Map<String, dynamic> item) {
-    final Color tagColor = item['color'];
-    final bool isPinned = item['isPinned'];
+  Widget _buildNewsCard(Announcement announcement) {
+    final Color tagColor = _categoryColor(announcement.category);
+    final bool isPinned = announcement.priority == 'High';
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => NewsDetailsView(item: item),
+            builder: (context) => NewsDetailsView(item: {
+              'tag': announcement.category.toUpperCase(),
+              'title': announcement.title,
+              'description': announcement.content,
+              'time': _formatTime(announcement.createdAt),
+              'isPinned': isPinned,
+              'color': tagColor,
+              'content': announcement.content,
+              'createdAt': announcement.createdAt.toIso8601String(),
+              'author': announcement.author,
+            }),
           ),
         );
       },
@@ -144,7 +183,6 @@ class _NewsViewState extends State<NewsView> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left Accent Border
               Container(
                 width: 5,
                 decoration: BoxDecoration(
@@ -172,11 +210,11 @@ class _NewsViewState extends State<NewsView> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              item['tag'],
+                              announcement.category.toUpperCase(),
                               style: TextStyle(
-                                color: Theme.of(context).brightness == Brightness.dark 
-                                  ? tagColor.withOpacity(0.9) 
-                                  : tagColor,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? tagColor.withOpacity(0.9)
+                                    : tagColor,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.5,
@@ -192,7 +230,7 @@ class _NewsViewState extends State<NewsView> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        item['title'],
+                        announcement.title,
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 16,
@@ -202,7 +240,7 @@ class _NewsViewState extends State<NewsView> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        item['description'],
+                        announcement.content,
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodyMedium?.color,
                           fontSize: 12,
@@ -222,7 +260,7 @@ class _NewsViewState extends State<NewsView> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            item['time'],
+                            _formatTime(announcement.createdAt),
                             style: TextStyle(
                               color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                               fontSize: 11,
@@ -240,5 +278,29 @@ class _NewsViewState extends State<NewsView> {
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    if (difference.inDays >= 1) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    }
+    if (difference.inHours >= 1) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    }
+    return '${difference.inMinutes} min ago';
+  }
+
+  Color _categoryColor(String category) {
+    switch (category) {
+      case 'Health Alert':
+        return const Color(0xFFEF4444);
+      case 'Event':
+        return const Color(0xFFF59E0B);
+      case 'General':
+      default:
+        return const Color(0xFF10B981);
+    }
   }
 }

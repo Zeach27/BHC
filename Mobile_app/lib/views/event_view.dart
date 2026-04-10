@@ -1,46 +1,111 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import '../models/event.dart';
+import '../services/api_service.dart';
 import '../utils/theme.dart';
 
-class EventView extends StatelessWidget {
+class EventView extends StatefulWidget {
   const EventView({Key? key}) : super(key: key);
+
+  @override
+  State<EventView> createState() => _EventViewState();
+}
+
+class _EventViewState extends State<EventView> {
+  Future<List<EventItem>> _eventsFuture = Future.value([]);
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _eventsFuture = ApiService().fetchEvents();
+  }
+
+  Future<void> _refreshEvents() async {
+    setState(() {
+      _eventsFuture = ApiService().fetchEvents();
+    });
+    // Wait for the future to complete
+    await _eventsFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildCalendarCard(context),
-              const SizedBox(height: 32),
-              _buildEventHeader(context),
-              const SizedBox(height: 16),
-              _buildEventCard(
-                context: context,
-                day: '28',
-                month: 'MAR',
-                title: 'Tuli Mission 2025',
-                tag: 'MEDICAL MISSION',
-                location: 'Barangay Multi-purpose Hall',
-                time: '8:00 AM - 12:00 PM',
-                onRegister: () {},
-              ),
-              const SizedBox(height: 16),
-              _buildEventCard(
-                context: context,
-                day: '28',
-                month: 'MAR',
-                title: 'Senior Citizen Wellness Checkup',
-                tag: 'HEALTH CHECKUP',
-                location: 'Health Center Ward A',
-                time: '1:00 PM - 4:00 PM',
-                onRegister: () {},
-              ),
-              const SizedBox(height: 32),
-            ],
+      body: RefreshIndicator(
+        onRefresh: _refreshEvents,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                _buildCalendarCard(context),
+                const SizedBox(height: 32),
+                _buildEventHeader(context),
+
+                FutureBuilder<List<EventItem>>(
+                  future: _eventsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Unable to load events.\n${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      );
+                    }
+
+                    final events = snapshot.data ?? [];
+                    final eventsForSelectedDate = _getEventsForSelectedDate(events);
+
+                    if (eventsForSelectedDate.isEmpty) {
+                      return const Center(
+                        child: Text('No events found for selected date.'),
+                      );
+                    }
+
+                    return Column(
+                      children: eventsForSelectedDate.map((event) {
+                        final parsedDate = _parseDate(event.date);
+                        final day = parsedDate.day.toString().padLeft(2, '0');
+                        const months = [
+                          'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+                          'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+                        ];
+                        final month = months[parsedDate.month - 1];
+                        final timeLabel = '${event.startTime ?? 'TBA'} - ${event.endTime ?? 'TBA'}';
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: _buildEventCard(
+                            context: context,
+                            day: day,
+                            month: month,
+                            title: event.title,
+                            tag: event.category.toUpperCase(),
+                            location: event.location ?? 'Location not available',
+                            time: timeLabel,
+                            onRegister: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Registered for ${event.title}')),
+                              );
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
@@ -49,7 +114,7 @@ class EventView extends StatelessWidget {
 
   Widget _buildCalendarCard(BuildContext context) {
     final daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    
+
     final mockDays = [
       -23, -24, -25, -26, -27, -28, 1,
       2,   3,   4,   5,   6,   7,   8,
@@ -60,7 +125,7 @@ class EventView extends StatelessWidget {
     ];
 
     final eventDays = {12, 15, 20, 28};
-    final selectedDay = 28;
+    final selectedDay = _selectedDate.day;
 
     return Container(
       decoration: BoxDecoration(
@@ -81,7 +146,7 @@ class EventView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'March 2025',
+                '${_getMonthName(_selectedDate.month)} ${_selectedDate.year}',
                 style: TextStyle(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 18,
@@ -91,14 +156,24 @@ class EventView extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      setState(() {
+                        _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+                        _eventsFuture = ApiService().fetchEvents();
+                      });
+                    },
                     icon: Icon(Icons.chevron_left, color: Theme.of(context).textTheme.bodyMedium?.color),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 16),
                   IconButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      setState(() {
+                        _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
+                        _eventsFuture = ApiService().fetchEvents();
+                      });
+                    },
                     icon: Icon(Icons.chevron_right, color: Theme.of(context).textTheme.bodyMedium?.color),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -108,7 +183,7 @@ class EventView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: daysOfWeek.map((day) => SizedBox(
@@ -146,42 +221,49 @@ class EventView extends StatelessWidget {
               final isSelected = dayInfo == selectedDay;
               final hasEvent = eventDays.contains(displayDay) && !isMuted;
 
-              return Container(
-                decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
-                  shape: BoxShape.circle,
-                  boxShadow: isSelected ? [
-                    BoxShadow(
-                      color: AppTheme.primaryBlue.withOpacity(0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ] : null,
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Text(
-                      displayDay.toString(),
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : (isMuted ? Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.3) : Theme.of(context).textTheme.bodyLarge?.color),
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                      ),
-                    ),
-                    if (hasEvent)
-                      Positioned(
-                        bottom: 6,
-                        child: Container(
-                          width: 4,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : AppTheme.primaryBlue,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDate = DateTime(_selectedDate.year, _selectedDate.month, displayDay);
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                    shape: BoxShape.circle,
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: AppTheme.primaryBlue.withOpacity(0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       )
-                  ],
+                    ] : null,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text(
+                        displayDay.toString(),
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : (isMuted ? Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.3) : Theme.of(context).textTheme.bodyLarge?.color),
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                      ),
+                      if (hasEvent)
+                        Positioned(
+                          bottom: 6,
+                          child: Container(
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : AppTheme.primaryBlue,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        )
+                    ],
+                  ),
                 ),
               );
             },
@@ -208,7 +290,7 @@ class EventView extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Events on March 28',
+                'Events on ${_getMonthName(_selectedDate.month)} ${_selectedDate.day}',
                 style: TextStyle(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 16,
@@ -217,14 +299,21 @@ class EventView extends StatelessWidget {
               ),
             ],
           ),
-          Text(
-            '2 Events Found',
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          )
+          FutureBuilder<List<EventItem>>(
+            future: _eventsFuture,
+            builder: (context, snapshot) {
+              final events = snapshot.data ?? [];
+              final eventsForSelectedDate = _getEventsForSelectedDate(events);
+              return Text(
+                '${eventsForSelectedDate.length} Event${eventsForSelectedDate.length == 1 ? '' : 's'} Found',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -277,7 +366,7 @@ class EventView extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withOpacity(0.1), 
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -286,7 +375,7 @@ class EventView extends StatelessWidget {
                             Text(
                               day,
                               style: const TextStyle(
-                                color: AppTheme.primaryBlue, 
+                                color: AppTheme.primaryBlue,
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
                                 height: 1.0,
@@ -397,5 +486,34 @@ class EventView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<EventItem> _getEventsForSelectedDate(List<EventItem> events) {
+    return events.where((event) {
+      try {
+        final eventDate = DateTime.parse(event.date);
+        return eventDate.year == _selectedDate.year &&
+               eventDate.month == _selectedDate.month &&
+               eventDate.day == _selectedDate.day;
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+  }
+
+  DateTime _parseDate(String date) {
+    try {
+      return DateTime.parse(date);
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
   }
 }
