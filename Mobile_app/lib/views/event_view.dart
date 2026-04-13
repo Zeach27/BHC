@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../services/api_service.dart';
 import '../utils/theme.dart';
+import 'event_details_view.dart';
 
 class EventView extends StatefulWidget {
   const EventView({Key? key}) : super(key: key);
@@ -86,6 +87,7 @@ class _EventViewState extends State<EventView> {
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: _buildEventCard(
                             context: context,
+                            event: event,
                             day: day,
                             month: month,
                             title: event.title,
@@ -321,6 +323,7 @@ class _EventViewState extends State<EventView> {
 
   Widget _buildEventCard({
     required BuildContext context,
+    required EventItem event,
     required String day,
     required String month,
     required String title,
@@ -329,18 +332,27 @@ class _EventViewState extends State<EventView> {
     required String time,
     required VoidCallback onRegister,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailsView(event: event),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -485,7 +497,7 @@ class _EventViewState extends State<EventView> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   List<EventItem> _getEventsForSelectedDate(List<EventItem> events) {

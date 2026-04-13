@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../viewmodels/auth_viewmodel.dart';
 import '../utils/theme.dart';
+import 'edit_personal_info_view.dart';
 
 class PersonalInfoView extends StatefulWidget {
   const PersonalInfoView({super.key});
@@ -469,7 +470,12 @@ class _PersonalInfoViewState extends State<PersonalInfoView> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const EditPersonalInfoView()),
+          );
+        },
         icon: const Icon(Icons.edit_note, color: Colors.white, size: 22),
         label: Text(
           'Edit Information',

@@ -147,6 +147,32 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfile(Map<String, dynamic> newData) async {
+    _setLoading(true);
+    _clearError();
+    try {
+      final userId = (_userData?['_id'] ?? _userData?['id'])?.toString();
+      if (userId == null || userId.isEmpty) {
+        throw Exception('Missing user session. Please login again.');
+      }
+
+      final responseData = await _authService.updateUser(userId, newData);
+      
+      // Update user data locally
+      if (_userData != null) {
+        _userData!.addAll(responseData);
+        await _saveToPrefs();
+      }
+      
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _setLoading(false);
+      return false;
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

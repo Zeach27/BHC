@@ -154,7 +154,12 @@ class ProfileView extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.edit, color: Colors.white),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PersonalInfoView()),
+                  );
+                },
                 style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2)),
               )
             ],

@@ -1,12 +1,7 @@
 // Import modules
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const connectDB = require("./config/db");
-
-// Load environment variables
-dotenv.config({ override: true });
-require("./config/cloudinary");
 const patientRoutes = require("./routes/patientRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const residentRoutes = require("./routes/residentRoutes");
@@ -50,6 +45,6 @@ app.get("/", (req, res) => {
 
 // Start server
 const PORT = 5000;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

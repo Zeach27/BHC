@@ -1,17 +1,41 @@
 import 'package:flutter/material.dart';
+import '../models/event.dart';
 import '../utils/theme.dart';
+import 'event_registration_view.dart';
 
-class NewsDetailsView extends StatelessWidget {
-  final Map<String, dynamic> item;
+class EventDetailsView extends StatelessWidget {
+  final EventItem event;
 
-  const NewsDetailsView({Key? key, required this.item}) : super(key: key);
+  const EventDetailsView({Key? key, required this.event}) : super(key: key);
+
+  Color _getBadgeColor(String category) {
+    final cat = category.toLowerCase();
+    if (cat.contains('health') || cat.contains('medical')) {
+      return const Color(0xFFF59E0B);
+    } else if (cat.contains('routine') || cat.contains('service')) {
+      return const Color(0xFF14B8A6);
+    } else if (cat.contains('community')) {
+      return const Color(0xFFF59E0B);
+    } else {
+      return AppTheme.primaryBlue;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tagColor = item['color'] is Color ? item['color'] as Color : const Color(0xFFEF4444);
+    final tagColor = _getBadgeColor(event.category);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final createdAt = item['createdAt'] != null ? DateTime.tryParse(item['createdAt'] as String) : null;
-    final postedText = createdAt != null ? '${createdAt.month}/${createdAt.day}/${createdAt.year}' : 'N/A';
+    
+    DateTime? eventDate;
+    try {
+      eventDate = DateTime.parse(event.date);
+    } catch (_) {}
+    
+    final dateText = eventDate != null 
+        ? '${eventDate.month}/${eventDate.day}/${eventDate.year}' 
+        : event.date;
+
+    final timeText = '${event.startTime ?? 'TBA'} - ${event.endTime ?? 'TBA'}';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -24,7 +48,7 @@ class NewsDetailsView extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Announcement',
+          'Event Details',
           style: TextStyle(
             color: AppTheme.primaryBlue,
             fontWeight: FontWeight.w800,
@@ -56,7 +80,7 @@ class NewsDetailsView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      item['tag'] ?? 'HEALTH ALERT',
+                      event.category.toUpperCase(),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -67,7 +91,7 @@ class NewsDetailsView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    item['title'] ?? 'Announcement',
+                    event.title,
                     style: TextStyle(
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 22,
@@ -81,7 +105,7 @@ class NewsDetailsView extends StatelessWidget {
                       const Icon(Icons.calendar_today, size: 14, color: AppTheme.primaryBlue),
                       const SizedBox(width: 6),
                       Text(
-                        'Posted: $postedText',
+                        'Date: $dateText',
                         style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -92,8 +116,22 @@ class NewsDetailsView extends StatelessWidget {
                       const Icon(Icons.access_time_filled, size: 14, color: Color(0xFFB45309)),
                       const SizedBox(width: 6),
                       Text(
-                        'Status: ${item['tag'] ?? 'N/A'}',
+                        'Time: $timeText',
                         style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Color(0xFF059669)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Location: ${event.location ?? 'TBA'}',
+                          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -101,7 +139,7 @@ class NewsDetailsView extends StatelessWidget {
                   Divider(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.1)),
                   const SizedBox(height: 20),
                   Text(
-                    item['content'] ?? item['description'] ?? 'No additional details available.',
+                    event.description ?? 'No additional details available for this event.',
                     style: TextStyle(
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 14,
@@ -112,7 +150,7 @@ class NewsDetailsView extends StatelessWidget {
                   const SizedBox(height: 24),
                   Container(
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F3224) : const Color(0xFFECFDF5),
+                      color: isDark ? const Color(0xFF1E3A8A).withOpacity(0.3) : const Color(0xFFEFF6FF), // AppTheme.primaryLight
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: IntrinsicHeight(
@@ -121,7 +159,7 @@ class NewsDetailsView extends StatelessWidget {
                           Container(
                             width: 6,
                             decoration: const BoxDecoration(
-                              color: Color(0xFF059669),
+                              color: AppTheme.primaryBlue,
                               borderRadius: BorderRadius.only(
                                 topLeft: Radius.circular(12),
                                 bottomLeft: Radius.circular(12),
@@ -132,9 +170,9 @@ class NewsDetailsView extends StatelessWidget {
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Text(
-                                'Huwag balewalain ang anumang sintomas. Kung makaranas ng mataas na lagnat sa loob ng higit sa dalawang araw, agad na pumunta sa ating Health Center o pinakamalapit na pagamutan para sa wastong pagsusuri at gamutan. Ang maagang pagtukoy sa sakit ay susi sa mabilis na paggaling.',
+                                'Please make sure to arrive at the specified location at least 15 minutes before the start time. Don\'t forget to bring any necessary requirements or identification if needed.',
                                 style: TextStyle(
-                                  color: isDark ? const Color(0xFF6EE7B7) : const Color(0xFF064E3B),
+                                  color: isDark ? const Color(0xFFBFDBFE) : const Color(0xFF1E3A8A),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   height: 1.5,
@@ -150,19 +188,19 @@ class NewsDetailsView extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.business, color: Colors.white, size: 20),
+                         padding: const EdgeInsets.all(10),
+                         decoration: BoxDecoration(
+                           color: AppTheme.primaryBlue,
+                           borderRadius: BorderRadius.circular(8),
+                         ),
+                         child: const Icon(Icons.business, color: Colors.white, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'POSTED BY:',
+                            'ORGANIZED BY:',
                             style: TextStyle(
                               color: Theme.of(context).textTheme.bodyMedium?.color,
                               fontSize: 10,
@@ -170,9 +208,9 @@ class NewsDetailsView extends StatelessWidget {
                               letterSpacing: 0.5,
                             ),
                           ),
-                          Text(
-                            item['author'] ?? 'Barangay Health Center',
-                            style: const TextStyle(
+                          const Text(
+                            'Barangay Health Center',
+                            style: TextStyle(
                               color: AppTheme.primaryBlue,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -185,18 +223,26 @@ class NewsDetailsView extends StatelessWidget {
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryBlue,
-                        side: const BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
                       ),
-                      onPressed: () {},
-                      icon: const Icon(Icons.share),
+                      onPressed: () {
+                         Navigator.push(
+                           context,
+                           MaterialPageRoute(
+                             builder: (context) => EventRegistrationView(event: event),
+                           ),
+                         );
+                      },
+                      icon: const Icon(Icons.how_to_reg),
                       label: const Text(
-                        'Share this Announcement',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                        'Register for Event',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                       ),
                     ),
                   ),

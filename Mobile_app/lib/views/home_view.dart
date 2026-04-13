@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'emergency_view.dart';
 import 'health_records_view.dart';
+import 'all_events_view.dart';
+import 'event_details_view.dart';
 
 class HomeView extends StatefulWidget {
   final VoidCallback? onNavigateToProfileTab;
@@ -168,7 +170,17 @@ class _HomeViewState extends State<HomeView> {
                 const SizedBox(height: 16),
                 _buildNextAppointmentCard(context),
                 const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Barangay Events', actionText: 'View all'),
+                _buildSectionTitle(
+                  context, 
+                  'Barangay Events', 
+                  actionText: 'View all',
+                  onActionTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AllEventsView()),
+                    );
+                  },
+                ),
                 const SizedBox(height: 16),
                 _buildEventCard(context),
                 const SizedBox(height: 24),
@@ -348,7 +360,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title, {String? actionText}) {
+  Widget _buildSectionTitle(BuildContext context, String title, {String? actionText, VoidCallback? onActionTap}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -362,12 +374,15 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
         if (actionText != null)
-          Text(
-            actionText,
-            style: const TextStyle(
-              color: AppTheme.primaryBlue,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          GestureDetector(
+            onTap: onActionTap,
+            child: Text(
+              actionText,
+              style: const TextStyle(
+                color: AppTheme.primaryBlue,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           )
       ],
@@ -560,18 +575,29 @@ class _HomeViewState extends State<HomeView> {
         ? '${_nextEvent!.startTime ?? 'TBA'} - ${_nextEvent!.endTime ?? 'TBA'}'
         : '7:00 AM - 10:00 AM';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
+    return GestureDetector(
+      onTap: () {
+        if (hasEvent) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EventDetailsView(event: _nextEvent!),
+            ),
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -709,7 +735,7 @@ class _HomeViewState extends State<HomeView> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildHealthTipCard(BuildContext context) {

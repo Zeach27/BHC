@@ -3,10 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 
 class AuthService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:5000/api',
-  );
+  // localhost works on real Android devices when adb reverse is enabled.
+  static const String baseUrl = 'http://localhost:5000/api';
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
@@ -70,11 +68,7 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> updateProfileImage(
-    File imageFile,
-    String token,
-    String userId,
-  ) async {
+  Future<Map<String, dynamic>> updateProfileImage(File imageFile, String token, String userId) async {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl/users/$userId/upload-profile-image'),
@@ -85,21 +79,31 @@ class AuthService {
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
-    Map<String, dynamic>? responseData;
-    try {
-      responseData = jsonDecode(responseBody) as Map<String, dynamic>;
-    } catch (_) {
-      responseData = null;
-    }
 
     if (response.statusCode == 200) {
-      return responseData ?? <String, dynamic>{};
+      final responseData = jsonDecode(responseBody);
+      return responseData;
+    } else if (response.statusCode == 400) {
+      final responseData = jsonDecode(responseBody);
+      throw Exception(responseData['message'] ?? 'Upload failed');
     } else {
-      throw Exception(
-        responseData?['message'] ??
-            responseData?['error'] ??
-            'Server error: ${response.statusCode}',
-      );
+      throw Exception('Server error: ${response.statusCode}');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateUser(String userId, Map<String, dynamic> data) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to update user: ${response.statusCode}');
     }
   }
 }

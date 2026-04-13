@@ -36,6 +36,10 @@ exports.updateUser = async (req, res) => {
     user.role = req.body.role || user.role;
     user.phone = req.body.phone || user.phone;
     user.email = req.body.email || user.email;
+    user.birthdate = req.body.birthdate || user.birthdate;
+    user.gender = req.body.gender || user.gender;
+    user.civilStatus = req.body.civilStatus || user.civilStatus;
+    user.barangay = req.body.barangay || user.barangay;
 
     if (req.body.password) {
       user.password = req.body.password;
