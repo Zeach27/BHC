@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../services/auth_service.dart';
 
 class AuthViewModel extends ChangeNotifier {
@@ -10,11 +13,54 @@ class AuthViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  Map<String, dynamic>? _userData;
+  Map<String, dynamic>? get userData => _userData;
+
+  String? _token;
+  String? get token => _token;
+
+  AuthViewModel() {
+    _loadFromPrefs();
+  }
+
+  Map<String, dynamic> _normalizeUserData(Map<String, dynamic> user) {
+    final normalized = Map<String, dynamic>.from(user);
+    final resolvedId = normalized['_id'] ?? normalized['id'];
+    if (resolvedId != null) {
+      normalized['_id'] = resolvedId.toString();
+      normalized['id'] = resolvedId.toString();
+    }
+    return normalized;
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('token');
+    final userJson = prefs.getString('user');
+    if (userJson != null) {
+      _userData = _normalizeUserData(Map<String, dynamic>.from(jsonDecode(userJson)));
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_token != null) {
+      await prefs.setString('token', _token!);
+    }
+    if (_userData != null) {
+      await prefs.setString('user', jsonEncode(_userData));
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     _setLoading(true);
     _clearError();
     try {
-      await _authService.login(email, password);
+      final responseData = await _authService.login(email, password);
+      _token = responseData['token'];
+      _userData = _normalizeUserData(Map<String, dynamic>.from(responseData['user']));
+      await _saveToPrefs();
       _setLoading(false);
       return true;
     } catch (e) {
@@ -24,11 +70,36 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String name, String email, String password) async {
+  Future<bool> register(
+    String name,
+    String email,
+    String password,
+    String role,
+    String? phone,
+    String? birthdate,
+    String? gender,
+    String? civilStatus,
+    String? barangay,
+    String? street,
+  ) async {
     _setLoading(true);
     _clearError();
     try {
-      await _authService.register(name, email, password);
+      final responseData = await _authService.register(
+        name,
+        email,
+        password,
+        role,
+        phone,
+        birthdate,
+        gender,
+        civilStatus,
+        barangay,
+        street,
+      );
+      _token = responseData['token'];
+      _userData = _normalizeUserData(Map<String, dynamic>.from(responseData['user']));
+      await _saveToPrefs();
       _setLoading(false);
       return true;
     } catch (e) {
@@ -39,9 +110,41 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    // Simulate cleanup
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Clear user data and token
+    _token = null;
+    _userData = null;
     _clearError();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    notifyListeners();
+  }
+
+  Future<bool> updateProfileImage(File imageFile) async {
+    _setLoading(true);
+    _clearError();
+    try {
+      final userId = (_userData?['_id'] ?? _userData?['id'])?.toString();
+      if (_token == null || userId == null || userId.isEmpty) {
+        throw Exception('Missing user session. Please login again.');
+      }
+
+      final responseData = await _authService.updateProfileImage(
+        imageFile,
+        _token!,
+        userId,
+      );
+      // Update user data with new profile image URL
+      if (_userData != null) {
+        _userData!['profileImage'] = responseData['profileImage'] ?? _userData!['profileImage'];
+        await _saveToPrefs();
+      }
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _setLoading(false);
+      return false;
+    }
   }
 
   void _setLoading(bool value) {

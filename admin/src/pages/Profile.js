@@ -29,6 +29,47 @@ function Profile() {
   const [office, setOffice] = useState("Main Health Center - Terminal 1");
   const [showSuccess, setShowSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [profileImage, setProfileImage] = useState(localStorage.getItem("profileImage") || null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const fileInputRef = React.useRef(null);
+  const [userId, setUserId] = useState(localStorage.getItem("userId") || "");
+
+  useEffect(() => {
+    const resolveUserId = async () => {
+      const savedId = localStorage.getItem("userId") || "";
+      const objectIdRegex = /^[a-f\d]{24}$/i;
+
+      if (objectIdRegex.test(savedId)) {
+        setUserId(savedId);
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/users");
+        if (!response.ok) return;
+
+        const users = await response.json();
+        const preferredUser =
+          users.find((u) => u?.role === "Admin") ||
+          users.find((u) => (u?.username || "").toLowerCase() === "admin") ||
+          users[0];
+
+        if (preferredUser?._id) {
+          setUserId(preferredUser._id);
+          localStorage.setItem("userId", preferredUser._id);
+          if (preferredUser.profileImage) {
+            setProfileImage(preferredUser.profileImage);
+            localStorage.setItem("profileImage", preferredUser.profileImage);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to resolve user id:", error);
+      }
+    };
+
+    resolveUserId();
+  }, []);
 
   const handleUpdate = (e) => {
     e.preventDefault();
@@ -36,6 +77,61 @@ function Profile() {
     localStorage.setItem("adminId", adminId);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!userId) {
+      setUploadError("No valid account found. Please refresh and login again.");
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please select an image file");
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("File size must be less than 5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append("profileImage", file);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${userId}/upload-profile-image`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload image");
+      }
+
+      const data = await response.json();
+      setProfileImage(data.profileImage);
+      localStorage.setItem("profileImage", data.profileImage);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setUploadError(error.message || "Failed to upload image");
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   return (
@@ -122,11 +218,89 @@ function Profile() {
 
       <div className="animate-fade-in profile-wrapper">
         
+        {/* SUCCESS/ERROR MESSAGES */}
+        {showSuccess && (
+          <div style={{
+            background: '#D1FAE5',
+            border: '1px solid #6EE7B7',
+            color: '#065F46',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            animation: 'fadeIn 0.3s ease'
+          }}>
+            <FontAwesomeIcon icon={faCheckCircle} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Profile updated successfully!</span>
+          </div>
+        )}
+        
+        {uploadError && (
+          <div style={{
+            background: '#FEE2E2',
+            border: '1px solid #FECACA',
+            color: '#991B1B',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            animation: 'fadeIn 0.3s ease'
+          }}>
+            <FontAwesomeIcon icon={faCircleInfo} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{uploadError}</span>
+          </div>
+        )}
+        
+        {isUploading && (
+          <div style={{
+            background: '#DBEAFE',
+            border: '1px solid #93C5FD',
+            color: '#1E40AF',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            animation: 'fadeIn 0.3s ease'
+          }}>
+            <FontAwesomeIcon icon={faSync} spin />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Uploading image...</span>
+          </div>
+        )}
+        
         {/* COMPACT HEADER */}
         <header className="profile-compact-header">
           <div className="avatar-box">
-            <div className="avatar-md">SA</div>
-            <button className="avatar-edit-sm"><FontAwesomeIcon icon={faCamera} /></button>
+            <div 
+              className="avatar-md" 
+              style={{
+                backgroundImage: profileImage ? `url(${profileImage})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                color: profileImage ? 'transparent' : '#4169E1'
+              }}
+            >
+              {!profileImage && adminName.substring(0, 2).toUpperCase()}
+            </div>
+            <button 
+              type="button"
+              className="avatar-edit-sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }}
+            >
+              <FontAwesomeIcon icon={faCamera} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleImageUpload}
+              disabled={isUploading}
+            />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem' }}>

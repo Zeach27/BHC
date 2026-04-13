@@ -1,4 +1,6 @@
 const User = require("../models/user");
+const cloudinary = require("../config/cloudinary");
+const mongoose = require("mongoose");
 
 exports.getUsers = async (req, res) => {
   try {
@@ -43,6 +45,60 @@ exports.updateUser = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+};
+
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // Upload to Cloudinary using buffer
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "bhc_profiles",
+        public_id: `user_${user._id}`,
+        overwrite: true,
+        resource_type: "auto",
+      },
+      async (error, result) => {
+        if (error) {
+          console.error("Cloudinary upload error:", error);
+          return res.status(500).json({ message: "Failed to upload image to Cloudinary", error: error.message });
+        }
+
+        try {
+          // Save image URL to database
+          user.profileImage = result.secure_url;
+          await user.save();
+
+          res.json({
+            message: "Profile image updated successfully",
+            profileImage: result.secure_url,
+            user: user,
+          });
+        } catch (dbError) {
+          console.error("Database update error:", dbError);
+          res.status(500).json({ message: "Failed to save image URL to database", error: dbError.message });
+        }
+      }
+    );
+
+    // Pipe the buffer to the upload stream
+    uploadStream.end(req.file.buffer);
+  } catch (err) {
+    console.error("Upload error:", err);
+    res.status(500).json({ message: err.message });
   }
 };
 

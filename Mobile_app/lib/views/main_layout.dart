@@ -17,13 +17,18 @@ class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
   // The screens that correspond to the tabs
-  final List<Widget> _screens = [
-    const HomeView(),
-    const HealthView(),
-    const EventView(),
-    const NewsView(),
-    const ProfileView(),
-  ];
+  List<Widget> _screens() {
+    return [
+      HomeView(
+        onNavigateToProfileTab: () => _onTabTapped(4),
+        onNavigateToEventTab: () => _onTabTapped(2),
+      ),
+      const HealthView(),
+      const EventView(),
+      const NewsView(),
+      const ProfileView(),
+    ];
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -38,7 +43,7 @@ class _MainLayoutState extends State<MainLayout> {
       appBar: _currentIndex == 4 ? null : _buildSharedAppBar(context),
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: _screens(),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

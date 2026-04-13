@@ -4,9 +4,16 @@ import '../models/event.dart';
 import '../services/api_service.dart';
 import '../utils/theme.dart';
 import 'news_details_view.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/auth_viewmodel.dart';
+import 'emergency_view.dart';
+import 'health_records_view.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  final VoidCallback? onNavigateToProfileTab;
+  final VoidCallback? onNavigateToEventTab;
+
+  const HomeView({super.key, this.onNavigateToProfileTab, this.onNavigateToEventTab});
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -15,9 +22,11 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   Announcement? _healthAlert;
   EventItem? _nextEvent;
+  Map<String, dynamic>? _nextAppointment;
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
+  String? _lastLoadedUserId;
 
   @override
   void initState() {
@@ -25,10 +34,23 @@ class _HomeViewState extends State<HomeView> {
     _loadHomeContent();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final authViewModel = Provider.of<AuthViewModel>(context);
+    final userId = (authViewModel.userData?['_id'] ?? authViewModel.userData?['id'])?.toString();
+    if (userId != null && userId != _lastLoadedUserId) {
+      _lastLoadedUserId = userId;
+      _loadHomeContent();
+    }
+  }
+
   Future<void> _loadHomeContent() async {
     try {
+      final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
       final announcements = await ApiService().fetchAnnouncements();
       final events = await ApiService().fetchEvents();
+      final nextAppointment = await ApiService().fetchNextAppointmentForUser(authViewModel.userData);
 
       final healthAlerts = announcements
           .where((item) => item.category == 'Health Alert')
@@ -48,6 +70,7 @@ class _HomeViewState extends State<HomeView> {
       setState(() {
         _healthAlert = healthAlerts.isNotEmpty ? healthAlerts.first : null;
         _nextEvent = upcomingEvents.isNotEmpty ? upcomingEvents.first : (events.isNotEmpty ? events.first : null);
+        _nextAppointment = nextAppointment;
         _isLoading = false;
         _hasError = false;
         _errorMessage = null;
@@ -83,6 +106,23 @@ class _HomeViewState extends State<HomeView> {
     final day = date.day.toString().padLeft(2, '0');
     final time = event.startTime != null && event.startTime!.isNotEmpty ? event.startTime : 'TBA';
     return '$month $day • $time';
+  }
+
+  String _formatAppointmentDate(Map<String, dynamic> appointment) {
+    final parsedDate = DateTime.tryParse((appointment['date'] ?? '').toString());
+    final timeSlot = (appointment['timeSlot'] ?? '').toString();
+    if (parsedDate == null) {
+      return timeSlot.isNotEmpty ? timeSlot : 'TBA';
+    }
+
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final month = months[parsedDate.month - 1];
+    final day = parsedDate.day.toString().padLeft(2, '0');
+    final timePart = timeSlot.isNotEmpty ? timeSlot : 'TBA';
+    return '$month $day • $timePart';
   }
 
   Color _categoryColor(String category) {
@@ -143,13 +183,26 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildGreeting(BuildContext context) {
+    final authViewModel = Provider.of<AuthViewModel>(context);
+    final userName = authViewModel.userData?['name'] ?? 'User';
+    final userProfileImage = authViewModel.userData?['profileImage']?.toString();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const CircleAvatar(
-          radius: 24,
-          backgroundImage: NetworkImage('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=150&auto=format&fit=crop'),
-          backgroundColor: AppTheme.primaryLight,
+        GestureDetector(
+          onTap: () {
+            widget.onNavigateToProfileTab?.call();
+          },
+          child: CircleAvatar(
+            radius: 24,
+            backgroundImage: (userProfileImage != null && userProfileImage.isNotEmpty)
+                ? NetworkImage(userProfileImage)
+                : null,
+            backgroundColor: AppTheme.primaryLight,
+            child: (userProfileImage == null || userProfileImage.isEmpty)
+                ? const Icon(Icons.person, color: AppTheme.primaryBlue)
+                : null,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -166,7 +219,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
               Text(
-                'Maria! 👋',
+                '$userName! 👋',
                 style: TextStyle(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 18,
@@ -330,15 +383,27 @@ class _HomeViewState extends State<HomeView> {
       physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 1.3,
       children: [
-        _buildActionCard(context, Icons.folder_shared, 'My Records', AppTheme.primaryBlue),
-        _buildActionCard(context, Icons.calendar_month, 'Book Visit', const Color(0xFFD97706)),
-        _buildActionCard(context, Icons.medical_services, 'Emergency', const Color(0xFFDC2626)),
+        _buildActionCard(context, Icons.folder_shared, 'My Records', AppTheme.primaryBlue, onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HealthRecordsView()),
+          );
+        }),
+        _buildActionCard(context, Icons.calendar_month, 'Events', const Color(0xFFD97706), onTap: () {
+          widget.onNavigateToEventTab?.call();
+        }),
+        _buildActionCard(context, Icons.medical_services, 'Emergency', const Color(0xFFDC2626), onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const EmergencyView()),
+          );
+        }),
         _buildActionCard(context, Icons.vaccines, 'Vaccines', const Color(0xFF9333EA)),
       ],
     );
   }
 
-  Widget _buildActionCard(BuildContext context, IconData icon, String title, Color color) {
+  Widget _buildActionCard(BuildContext context, IconData icon, String title, Color color, {VoidCallback? onTap}) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -351,32 +416,48 @@ class _HomeViewState extends State<HomeView> {
           )
         ],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          )
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildNextAppointmentCard(BuildContext context) {
+    final hasAppointment = _nextAppointment != null;
+    final title = hasAppointment
+      ? (_nextAppointment!['service'] ?? _nextAppointment!['scheduleType'] ?? 'Upcoming Appointment').toString()
+      : 'No upcoming appointment';
+    final when = hasAppointment ? _formatAppointmentDate(_nextAppointment!) : 'Check back later';
+    final location = hasAppointment
+      ? (_nextAppointment!['location'] ?? 'Health Center').toString()
+      : 'Book from the health desk';
+
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -412,7 +493,7 @@ class _HomeViewState extends State<HomeView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Prenatal Care',
+                            title,
                             style: TextStyle(
                               color: Theme.of(context).textTheme.bodyLarge?.color,
                               fontSize: 14,
@@ -424,7 +505,7 @@ class _HomeViewState extends State<HomeView> {
                             children: [
                               Icon(Icons.calendar_today, size: 14, color: Theme.of(context).textTheme.bodyMedium?.color),
                               const SizedBox(width: 6),
-                              Text('Oct 12, 9:00 AM', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w500)),
+                              Text(when, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -432,7 +513,13 @@ class _HomeViewState extends State<HomeView> {
                             children: [
                               Icon(Icons.location_on, size: 14, color: Theme.of(context).textTheme.bodyMedium?.color),
                               const SizedBox(width: 6),
-                              Text('Health Center - Room 3', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w500)),
+                              Expanded(
+                                child: Text(
+                                  location,
+                                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12, fontWeight: FontWeight.w500),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -459,15 +546,24 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildEventCard(BuildContext context) {
     final hasEvent = _nextEvent != null;
     final title = hasEvent ? _nextEvent!.title : 'Senior Citizens Wellness Day';
-    final description = hasEvent
-        ? (_nextEvent!.description?.isNotEmpty == true ? _nextEvent!.description! : _nextEvent!.location ?? 'Barangay health event')
-        : 'Free Check-up & Zumba Session';
-    final badgeText = hasEvent ? _formatEventDate(_nextEvent!) : 'Oct 15 • 7:00 AM';
+    final tag = hasEvent ? (_nextEvent!.category.toUpperCase()) : 'GENERAL';
+    final location = hasEvent ? (_nextEvent!.location ?? 'Location not available') : 'Barangay Covered Court';
+
+    final eventDate = hasEvent ? _parseDate(_nextEvent!.date) : null;
+    final day = eventDate != null ? eventDate.day.toString().padLeft(2, '0') : '15';
+    const months = [
+      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+    ];
+    final month = eventDate != null ? months[eventDate.month - 1] : 'OCT';
+    final time = hasEvent
+        ? '${_nextEvent!.startTime ?? 'TBA'} - ${_nextEvent!.endTime ?? 'TBA'}'
+        : '7:00 AM - 10:00 AM';
 
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -476,53 +572,142 @@ class _HomeViewState extends State<HomeView> {
           )
         ],
       ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          ClipRTRoundedRectangle(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=150&auto=format&fit=crop',
-              width: 70,
-              height: 70,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 6,
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryBlue,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  bottomLeft: Radius.circular(20),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description.isNotEmpty ? description : 'Barangay health event',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(badgeText, style: const TextStyle(color: AppTheme.primaryBlue, fontSize: 10, fontWeight: FontWeight.w700)),
-                )
-              ],
+              ),
             ),
-          )
-        ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.center,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              day,
+                              style: const TextStyle(
+                                color: AppTheme.primaryBlue,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              month,
+                              style: const TextStyle(
+                                color: AppTheme.primaryBlue,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on, size: 14, color: AppTheme.primaryBlue),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  location,
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time_filled, size: 14, color: AppTheme.primaryBlue),
+                              const SizedBox(width: 6),
+                              Text(
+                                time,
+                                style: TextStyle(
+                                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -591,21 +776,6 @@ class _HomeViewState extends State<HomeView> {
           )
         ],
       ),
-    );
-  }
-}
-
-class ClipRTRoundedRectangle extends StatelessWidget {
-  final Widget child;
-  final BorderRadius borderRadius;
-
-  const ClipRTRoundedRectangle({super.key, required this.child, required this.borderRadius});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: child,
     );
   }
 }

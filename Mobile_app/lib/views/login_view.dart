@@ -322,7 +322,7 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Community health scheduling and monitoring system',
+                  'Community Health Scheduling and Monitoring System',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,

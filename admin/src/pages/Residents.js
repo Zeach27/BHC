@@ -10,7 +10,7 @@ import {
   faHeartbeat, faSyringe, faShieldAlt
 } from "@fortawesome/free-solid-svg-icons";
 
-const API_URL = "http://localhost:5000/api/residents";
+const API_URL = "http://localhost:5000/api/users";
 
 export default function Residents() {
   const [residents, setResidents] = useState([]);
@@ -26,7 +26,9 @@ export default function Residents() {
     setLoading(true);
     try {
       const res = await axios.get(API_URL);
-      setResidents(res.data);
+      // Filter to show only app-registered users (those with civilStatus field)
+      const appUsers = res.data.filter(user => user.civilStatus || user.barangay);
+      setResidents(appUsers);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -48,10 +50,9 @@ export default function Residents() {
   };
 
   const filtered = residents.filter(r => {
-    const searchStr = (r.fullName + (r.username || "") + (r.idNumber || "")).toLowerCase();
+    const searchStr = (r.name + (r.username || "") + (r.email || "")).toLowerCase();
     const matchesSearch = searchStr.includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === "All" || r.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const headerActions = (
@@ -79,22 +80,12 @@ export default function Residents() {
             <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
             <input
               style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '0.875rem', backgroundColor: '#F8FAFC' }}
-              placeholder="Search by name, username, or ID number..."
+              placeholder="Search by name, email, or username..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <select 
-              style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #E2E8F0', background: 'white', fontWeight: 700, fontSize: '0.8125rem', cursor: 'pointer', outline: 'none' }}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Suspended">Suspended</option>
-            </select>
           </div>
         </div>
       </section>
@@ -116,7 +107,7 @@ export default function Residents() {
             {/* Header / Status Banner */}
             <div style={{ 
               height: '80px', 
-              background: r.status === 'Suspended' ? 'linear-gradient(135deg, #EF4444, #991B1B)' : 'linear-gradient(135deg, #4169E1, #1E40AF)',
+              background: 'linear-gradient(135deg, #4169E1, #1E40AF)',
               position: 'relative',
               padding: '1rem 1.5rem'
             }}>
@@ -129,7 +120,7 @@ export default function Residents() {
                 fontWeight: 800,
                 backdropFilter: 'blur(4px)'
               }}>
-                {r.status || 'Active'}
+                {r.status || 'App Registered'}
               </span>
               <div style={{ position: 'absolute', right: '1.5rem', bottom: '-20px' }}>
                 <div style={{ 
@@ -141,7 +132,7 @@ export default function Residents() {
                   padding: '4px'
                 }}>
                   {r.profileImage ? (
-                    <img src={r.profileImage} alt={r.fullName} style={{ width: '100%', height: '100%', borderRadius: '14px', objectFit: 'cover' }} />
+                    <img src={r.profileImage} alt={r.name} style={{ width: '100%', height: '100%', borderRadius: '14px', objectFit: 'cover' }} />
                   ) : (
                     <div style={{ 
                       width: '100%', height: '100%', borderRadius: '14px', 
@@ -149,7 +140,7 @@ export default function Residents() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '1.5rem', fontWeight: 800
                     }}>
-                      {r.fullName.charAt(0)}
+                      {r.name ? r.name.charAt(0) : 'U'}
                     </div>
                   )}
                 </div>
@@ -159,24 +150,24 @@ export default function Residents() {
             {/* Content */}
             <div style={{ padding: '2rem 1.5rem 1.5rem' }}>
               <div style={{ marginBottom: '1.25rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0F172A' }}>{r.fullName}</h3>
-                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#4169E1', fontWeight: 800 }}>@{r.username}</p>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0F172A' }}>{r.name || 'N/A'}</h3>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#4169E1', fontWeight: 800 }}>{r.email || 'N/A'}</p>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faIdCard} /></div>
+                  <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faPhoneAlt} /></div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>ID Number</span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>{r.idNumber || r._id.slice(-8).toUpperCase()}</span>
+                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Phone Number</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>{r.phone || 'N/A'}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faBirthdayCake} /></div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Age & Birthday</span>
+                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Birthdate</span>
                     <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>
-                      {r.age || '??'}y • {r.birthday ? new Date(r.birthday).toLocaleDateString() : 'N/A'}
+                      {r.birthdate ? new Date(r.birthdate).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -191,7 +182,7 @@ export default function Residents() {
                   <div style={{ color: '#94A3B8', width: '16px' }}><FontAwesomeIcon icon={faMapMarkerAlt} /></div>
                   <div>
                     <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Address</span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>P-{r.purok}, {r.barangay || 'Brgy Sample'}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#475569' }}>{r.barangay || 'N/A'}</span>
                   </div>
                 </div>
               </div>

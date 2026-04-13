@@ -43,9 +43,9 @@ class _RegisterViewState extends State<RegisterView> {
 
   void _submit() async {
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       return;
     }
 
@@ -54,11 +54,20 @@ class _RegisterViewState extends State<RegisterView> {
       _fullNameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text,
+      "Employee", // Default role for app registrations
+      _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+      _selectedBirthday?.toIso8601String(),
+      _selectedGender,
+      _selectedCivilStatus,
+      _selectedBarangay,
+      _streetController.text.trim().isNotEmpty ? _streetController.text.trim() : null,
     );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration Successful! Please log in.')),
+        const SnackBar(
+          content: Text('Registration Successful! Please log in.'),
+        ),
       );
       Navigator.pop(context);
     }
@@ -83,11 +92,13 @@ class _RegisterViewState extends State<RegisterView> {
     final viewModel = Provider.of<AuthViewModel>(context);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: Theme.of(context).textTheme.bodyLarge?.color),
+        iconTheme: IconThemeData(
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -102,10 +113,19 @@ class _RegisterViewState extends State<RegisterView> {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.3), width: 1.5),
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium!.color!.withOpacity(0.3),
+                      width: 1.5,
+                    ),
                   ),
                   alignment: Alignment.center,
-                  child: const Icon(Icons.health_and_safety, color: AppTheme.primaryBlue, size: 28),
+                  child: const Icon(
+                    Icons.health_and_safety,
+                    color: AppTheme.primaryBlue,
+                    size: 28,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -137,20 +157,24 @@ class _RegisterViewState extends State<RegisterView> {
                     border: Border.all(color: const Color(0xFFF5CCCC)),
                   ),
                   child: Row(
-                     children: [
-                       const Icon(Icons.error_outline, color: Color(0xFFCB3F3F), size: 20),
-                       const SizedBox(width: 8),
-                       Expanded(
-                         child: Text(
-                           viewModel.errorMessage!,
-                           style: const TextStyle(
-                             color: Color(0xFFCB3F3F),
-                             fontSize: 12,
-                             fontWeight: FontWeight.w600,
-                           ),
-                         ),
-                       ),
-                     ],
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Color(0xFFCB3F3F),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          viewModel.errorMessage!,
+                          style: const TextStyle(
+                            color: Color(0xFFCB3F3F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -165,7 +189,10 @@ class _RegisterViewState extends State<RegisterView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildLabel('FULL NAME'),
-                    _buildTextField(controller: _fullNameController, hintText: 'e.g. Juan Dela Cruz'),
+                    _buildTextField(
+                      controller: _fullNameController,
+                      hintText: 'e.g. Juan Dela Cruz',
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -177,29 +204,53 @@ class _RegisterViewState extends State<RegisterView> {
                               GestureDetector(
                                 onTap: _pickDate,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 14,
+                                  ),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium!
+                                          .color!
+                                          .withOpacity(0.2),
+                                    ),
                                     borderRadius: BorderRadius.circular(10),
-                                    color: Theme.of(context).scaffoldBackgroundColor,
+                                    color: Theme.of(
+                                      context,
+                                    ).scaffoldBackgroundColor,
                                   ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        _selectedBirthday == null 
-                                          ? 'mm/dd/yyyy' 
-                                          : "${_selectedBirthday!.month.toString().padLeft(2, '0')}/${_selectedBirthday!.day.toString().padLeft(2, '0')}/${_selectedBirthday!.year}",
+                                        _selectedBirthday == null
+                                            ? 'mm/dd/yyyy'
+                                            : "${_selectedBirthday!.month.toString().padLeft(2, '0')}/${_selectedBirthday!.day.toString().padLeft(2, '0')}/${_selectedBirthday!.year}",
                                         style: TextStyle(
-                                          color: _selectedBirthday == null ? Theme.of(context).textTheme.bodyMedium?.color : Theme.of(context).textTheme.bodyLarge?.color,
+                                          color: _selectedBirthday == null
+                                              ? Theme.of(
+                                                  context,
+                                                ).textTheme.bodyMedium?.color
+                                              : Theme.of(
+                                                  context,
+                                                ).textTheme.bodyLarge?.color,
                                           fontSize: 14,
                                         ),
                                       ),
-                                      Icon(Icons.calendar_today_outlined, size: 16, color: Theme.of(context).textTheme.bodyMedium?.color),
+                                      Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 16,
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.color,
+                                      ),
                                     ],
                                   ),
                                 ),
-                              )
+                              ),
                             ],
                           ),
                         ),
@@ -210,23 +261,58 @@ class _RegisterViewState extends State<RegisterView> {
                             children: [
                               _buildLabel('GENDER'),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium!
+                                        .color!
+                                        .withOpacity(0.2),
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
-                                  color: Theme.of(context).scaffoldBackgroundColor,
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
                                     isExpanded: true,
-                                    dropdownColor: Theme.of(context).colorScheme.surface,
-                                    hint: Text("Select", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 14)),
+                                    dropdownColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    hint: Text(
+                                      "Select",
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.color,
+                                        fontSize: 14,
+                                      ),
+                                    ),
                                     value: _selectedGender,
-                                    icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).textTheme.bodyMedium?.color),
-                                    items: ['Male', 'Female', 'Other'].map((String value) {
+                                    icon: Icon(
+                                      Icons.keyboard_arrow_down,
+                                      color: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color,
+                                    ),
+                                    items: ['Male', 'Female', 'Other'].map((
+                                      String value,
+                                    ) {
                                       return DropdownMenuItem<String>(
                                         value: value,
-                                        child: Text(value, style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                                        child: Text(
+                                          value,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Theme.of(
+                                              context,
+                                            ).textTheme.bodyLarge?.color,
+                                          ),
+                                        ),
                                       );
                                     }).toList(),
                                     onChanged: (val) {
@@ -239,7 +325,7 @@ class _RegisterViewState extends State<RegisterView> {
                               ),
                             ],
                           ),
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -249,7 +335,9 @@ class _RegisterViewState extends State<RegisterView> {
                         final isSelected = _selectedCivilStatus == status;
                         return Expanded(
                           child: Padding(
-                            padding: EdgeInsets.only(right: status == 'Widowed' ? 0 : 8.0),
+                            padding: EdgeInsets.only(
+                              right: status == 'Widowed' ? 0 : 8.0,
+                            ),
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
@@ -257,19 +345,35 @@ class _RegisterViewState extends State<RegisterView> {
                                 });
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.primaryBlue : Theme.of(context).scaffoldBackgroundColor,
+                                  color: isSelected
+                                      ? AppTheme.primaryBlue
+                                      : Theme.of(
+                                          context,
+                                        ).scaffoldBackgroundColor,
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: isSelected ? AppTheme.primaryBlue : Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2),
+                                    color: isSelected
+                                        ? AppTheme.primaryBlue
+                                        : Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium!
+                                              .color!
+                                              .withOpacity(0.2),
                                   ),
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
                                   status,
                                   style: TextStyle(
-                                    color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -296,23 +400,46 @@ class _RegisterViewState extends State<RegisterView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildLabel('EMAIL'),
-                    _buildTextField(controller: _emailController, hintText: 'name@example.com', keyboardType: TextInputType.emailAddress),
+                    _buildTextField(
+                      controller: _emailController,
+                      hintText: 'name@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
                     const SizedBox(height: 16),
                     _buildLabel('PHONE NUMBER'),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium!.color!.withOpacity(0.2),
+                            ),
                             borderRadius: BorderRadius.circular(10),
                             color: Theme.of(context).scaffoldBackgroundColor,
                           ),
-                          child: Text("+63", style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                          child: Text(
+                            "+63",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: _buildTextField(controller: _phoneController, hintText: '912 345 6789', keyboardType: TextInputType.phone),
+                          child: _buildTextField(
+                            controller: _phoneController,
+                            hintText: '912 345 6789',
+                            keyboardType: TextInputType.phone,
+                          ),
                         ),
                       ],
                     ),
@@ -321,7 +448,11 @@ class _RegisterViewState extends State<RegisterView> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium!.color!.withOpacity(0.2),
+                        ),
                         borderRadius: BorderRadius.circular(10),
                         color: Theme.of(context).scaffoldBackgroundColor,
                       ),
@@ -329,15 +460,38 @@ class _RegisterViewState extends State<RegisterView> {
                         child: DropdownButton<String>(
                           isExpanded: true,
                           dropdownColor: Theme.of(context).colorScheme.surface,
-                          hint: Text("Pumili ng Barangay", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 14)),
+                          hint: Text(
+                            "Pumili ng Barangay",
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
+                              fontSize: 14,
+                            ),
+                          ),
                           value: _selectedBarangay,
-                          icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).textTheme.bodyMedium?.color),
-                          items: ['Barangay 1', 'Barangay 2', 'Barangay 3'].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value, style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                            );
-                          }).toList(),
+                          icon: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
+                          ),
+                          items: ['Barangay 1', 'Barangay 2', 'Barangay 3'].map(
+                            (String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                ),
+                              );
+                            },
+                          ).toList(),
                           onChanged: (val) {
                             setState(() {
                               _selectedBarangay = val;
@@ -348,7 +502,10 @@ class _RegisterViewState extends State<RegisterView> {
                     ),
                     const SizedBox(height: 16),
                     _buildLabel('STREET / HOUSE NO.'),
-                    _buildTextField(controller: _streetController, hintText: 'e.g. 123 Malakas St.'),
+                    _buildTextField(
+                      controller: _streetController,
+                      hintText: 'e.g. 123 Malakas St.',
+                    ),
                   ],
                 ),
               ),
@@ -365,10 +522,22 @@ class _RegisterViewState extends State<RegisterView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildLabel('PASSWORD'),
-                    _buildPasswordField(controller: _passwordController, obscure: _obscurePassword, onToggle: () => setState(() => _obscurePassword = !_obscurePassword)),
+                    _buildPasswordField(
+                      controller: _passwordController,
+                      obscure: _obscurePassword,
+                      onToggle: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
                     const SizedBox(height: 16),
                     _buildLabel('CONFIRM PASSWORD'),
-                    _buildPasswordField(controller: _confirmPasswordController, obscure: _obscureConfirmPassword, onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword)),
+                    _buildPasswordField(
+                      controller: _confirmPasswordController,
+                      obscure: _obscureConfirmPassword,
+                      onToggle: () => setState(
+                        () =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -384,7 +553,7 @@ class _RegisterViewState extends State<RegisterView> {
                       color: Color(0x421F79C4),
                       blurRadius: 22,
                       offset: Offset(0, 10),
-                    )
+                    ),
                   ],
                 ),
                 child: ElevatedButton(
@@ -398,7 +567,10 @@ class _RegisterViewState extends State<RegisterView> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
                           'REGISTER NOW',
@@ -455,10 +627,10 @@ class _RegisterViewState extends State<RegisterView> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000), 
+            color: Color(0x0A000000),
             blurRadius: 10,
             offset: Offset(0, 2),
-          )
+          ),
         ],
       ),
       padding: const EdgeInsets.all(20),
@@ -533,18 +705,35 @@ class _RegisterViewState extends State<RegisterView> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
+      style: TextStyle(
+        fontSize: 14,
+        color: Theme.of(context).textTheme.bodyLarge?.color,
+      ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 14),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: TextStyle(
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+          fontSize: 14,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium!.color!.withOpacity(0.2),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium!.color!.withOpacity(0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -564,18 +753,37 @@ class _RegisterViewState extends State<RegisterView> {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
-      style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color, letterSpacing: 2.0),
+      style: TextStyle(
+        fontSize: 14,
+        color: Theme.of(context).textTheme.bodyLarge?.color,
+        letterSpacing: 2.0,
+      ),
       decoration: InputDecoration(
         hintText: '••••••••',
-        hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 14, letterSpacing: 2.0),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: TextStyle(
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+          fontSize: 14,
+          letterSpacing: 2.0,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium!.color!.withOpacity(0.2),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.2)),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium!.color!.withOpacity(0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),

@@ -1,7 +1,12 @@
 // Import modules
 const express = require("express");
 const cors = require("cors");
+const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+
+// Load environment variables
+dotenv.config({ override: true });
+require("./config/cloudinary");
 const patientRoutes = require("./routes/patientRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const residentRoutes = require("./routes/residentRoutes");
@@ -37,14 +42,14 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/records", recordRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/auth", require("./routes/authRoutes"));
 
-// Test route
 app.get("/", (req, res) => {
   res.send("Barangay Health API Running");
 });
 
 // Start server
 const PORT = 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

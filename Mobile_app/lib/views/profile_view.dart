@@ -4,6 +4,15 @@ import '../utils/theme.dart';
 import '../viewmodels/theme_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'login_view.dart';
+import 'personal_info_view.dart';
+import 'qr_id_view.dart';
+import 'privacy_security_view.dart';
+import 'language_view.dart';
+import 'notification_view.dart';
+import 'help_center_view.dart';
+import 'feedback_view.dart';
+import 'health_records_view.dart';
+import 'family_members_view.dart';
 
 class ProfileView extends StatelessWidget {
   const ProfileView({Key? key}) : super(key: key);
@@ -24,15 +33,45 @@ class ProfileView extends StatelessWidget {
                   _buildIDCard(context),
                   const SizedBox(height: 24),
                   _buildMenuSection(context, 'ACCOUNT & RECORDS', [
-                    _MenuOption(icon: Icons.person_outline, label: 'Personal Information', onTap: () {}),
-                    _MenuOption(icon: Icons.folder_shared_outlined, label: 'My Health Records', onTap: () {}),
-                    _MenuOption(icon: Icons.family_restroom, label: 'Family Members', onTap: () {}),
+                    _MenuOption(icon: Icons.person_outline, label: 'Personal Information', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PersonalInfoView()),
+                      );
+                    }),
+                    _MenuOption(icon: Icons.folder_shared_outlined, label: 'My Health Records', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HealthRecordsView()),
+                      );
+                    }),
+                    _MenuOption(icon: Icons.family_restroom, label: 'Family Members', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const FamilyMembersView()),
+                      );
+                    }),
                   ]),
                   const SizedBox(height: 24),
                   _buildMenuSection(context, 'SETTINGS', [
-                    _MenuOption(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
-                    _MenuOption(icon: Icons.language, label: 'Language (Tagalog/English)', onTap: () {}),
-                    _MenuOption(icon: Icons.lock_outline, label: 'Privacy & Security', onTap: () {}),
+                    _MenuOption(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotificationView()),
+                      );
+                    }),
+                    _MenuOption(icon: Icons.language, label: 'Language (Tagalog/English)', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LanguageView()),
+                      );
+                    }),
+                    _MenuOption(icon: Icons.lock_outline, label: 'Privacy & Security', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PrivacySecurityView()),
+                      );
+                    }),
                     _MenuOption(
                         icon: Icons.dark_mode_outlined,
                         label: 'Dark Mode',
@@ -53,8 +92,18 @@ class ProfileView extends StatelessWidget {
                   ]),
                   const SizedBox(height: 24),
                   _buildMenuSection(context, 'SUPPORT', [
-                    _MenuOption(icon: Icons.help_outline, label: 'Help Center & FAQs', onTap: () {}),
-                    _MenuOption(icon: Icons.feedback_outlined, label: 'Submit Feedback', onTap: () {}),
+                    _MenuOption(icon: Icons.help_outline, label: 'Help Center & FAQs', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HelpCenterView()),
+                      );
+                    }),
+                    _MenuOption(icon: Icons.feedback_outlined, label: 'Submit Feedback', onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const FeedbackView()),
+                      );
+                    }),
                   ]),
                   const SizedBox(height: 32),
                   _buildLogoutButton(context),
@@ -69,6 +118,10 @@ class ProfileView extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
+    final authViewModel = Provider.of<AuthViewModel>(context);
+    final userName = authViewModel.userData?['name'] ?? 'User';
+    final userEmail = authViewModel.userData?['email'] ?? '';
+    final profileImageUrl = authViewModel.userData?['profileImage']?.toString();
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.primaryBlue,
@@ -121,10 +174,15 @@ class ProfileView extends StatelessWidget {
                     )
                   ],
                 ),
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 40,
-                  backgroundImage: NetworkImage('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=250&auto=format&fit=crop'),
+                  backgroundImage: (profileImageUrl != null && profileImageUrl.isNotEmpty)
+                      ? NetworkImage(profileImageUrl)
+                      : null,
                   backgroundColor: Colors.white,
+                  child: (profileImageUrl == null || profileImageUrl.isEmpty)
+                      ? const Icon(Icons.person, color: AppTheme.primaryBlue, size: 38)
+                      : null,
                 ),
               ),
               const SizedBox(width: 20),
@@ -132,9 +190,9 @@ class ProfileView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Maria Santos',
-                      style: TextStyle(
+                    Text(
+                      userName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -142,7 +200,7 @@ class ProfileView extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Purok 4, Barangay San Jose',
+                      userEmail,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 13,
@@ -179,7 +237,18 @@ class ProfileView extends StatelessWidget {
   }
 
   Widget _buildIDCard(BuildContext context) {
-    return Container(
+    final authViewModel = Provider.of<AuthViewModel>(context);
+    final userData = authViewModel.userData;
+    final healthId = (userData?['healthId'] ?? userData?['id'] ?? 'N/A').toString();
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const QrIdView()),
+        );
+      },
+      child: Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
@@ -209,7 +278,7 @@ class ProfileView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Health ID: CHEMS-2025-001',
+                  'Health ID: $healthId',
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodyLarge?.color,
                     fontSize: 14,
@@ -234,6 +303,7 @@ class ProfileView extends StatelessWidget {
           Icon(Icons.chevron_right, color: Theme.of(context).textTheme.bodyMedium?.color),
         ],
       ),
+    ),
     );
   }
 

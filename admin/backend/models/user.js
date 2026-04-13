@@ -7,17 +7,20 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['Admin', 'Midwife', 'Employee'], 
+    enum: ['Admin', 'Midwife', 'Employee', 'Resident'], 
     default: 'Employee' 
   },
   phone: String,
   email: String,
+  healthId: { type: String, unique: true, sparse: true },
   
   // Enhanced Staff Information
-  staffId: { type: String, unique: true },
+  staffId: String,
   birthdate: Date,
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   address: String,
+  civilStatus: String,
+  barangay: String,
   specialization: String, // e.g., 'Pediatrics', 'Maternal Health'
   assignedPurok: String, // Which purok they primarily handle
   shift: { type: String, enum: ['Morning', 'Afternoon', 'Full Time'], default: 'Full Time' },
@@ -27,11 +30,10 @@ const UserSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Hash password before saving
-UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+UserSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 // Method to compare password

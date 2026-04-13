@@ -29,6 +29,48 @@ class _NewsViewState extends State<NewsView> {
     await _announcementsFuture;
   }
 
+  String _categorizeNewsByDate(DateTime createdAt, {DateTime? now}) {
+    // Normalize both dates to local calendar-day boundaries to avoid
+    // off-by-one errors due to time-of-day and timezone differences.
+    final localNow = (now ?? DateTime.now()).toLocal();
+    final localCreatedAt = createdAt.toLocal();
+
+    final today = DateTime(localNow.year, localNow.month, localNow.day);
+    final createdDay = DateTime(
+      localCreatedAt.year,
+      localCreatedAt.month,
+      localCreatedAt.day,
+    );
+
+    final diffDays = today.difference(createdDay).inDays;
+
+    if (diffDays <= 0) return 'Today';
+    if (diffDays == 1) return 'Yesterday';
+    if (diffDays >= 2 && diffDays <= 7) return 'This Week';
+    return 'Older';
+  }
+
+  List<MapEntry<String, List<Announcement>>> _groupByRecency(List<Announcement> announcements) {
+    final sorted = [...announcements]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final grouped = <String, List<Announcement>>{};
+    const order = ['Today', 'Yesterday', 'This Week', 'Older'];
+
+    for (final bucket in order) {
+      grouped[bucket] = <Announcement>[];
+    }
+
+    for (final item in sorted) {
+      grouped[_categorizeNewsByDate(item.createdAt)]!.add(item);
+    }
+
+    return order
+        .where((bucket) => grouped[bucket]!.isNotEmpty)
+        .map((bucket) => MapEntry(bucket, grouped[bucket]!))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,6 +110,7 @@ class _NewsViewState extends State<NewsView> {
                     final filteredAnnouncements = _selectedCategory == 'All'
                         ? announcements
                         : announcements.where((announcement) => announcement.category == _selectedCategory).toList();
+                    final groupedAnnouncements = _groupByRecency(filteredAnnouncements);
 
                     if (filteredAnnouncements.isEmpty) {
                       return ListView(
@@ -84,14 +127,29 @@ class _NewsViewState extends State<NewsView> {
                       );
                     }
 
-                    return ListView.separated(
+                    return ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      itemCount: filteredAnnouncements.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemCount: groupedAnnouncements.length,
                       itemBuilder: (context, index) {
-                        final item = filteredAnnouncements[index];
-                        return _buildNewsCard(item);
+                        final group = groupedAnnouncements[index];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (index > 0) const SizedBox(height: 8),
+                            _buildDateSectionHeader(group.key),
+                            const SizedBox(height: 10),
+                            ...group.value.asMap().entries.map((entry) {
+                              final item = entry.value;
+                              final isLast = entry.key == group.value.length - 1;
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                                child: _buildNewsCard(item),
+                              );
+                            }),
+                            const SizedBox(height: 20),
+                          ],
+                        );
                       },
                     );
                   },
@@ -280,16 +338,50 @@ class _NewsViewState extends State<NewsView> {
     );
   }
 
+  Widget _buildDateSectionHeader(String label) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.2),
+          ),
+        ),
+      ],
+    );
+  }
+
   String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final difference = now.difference(time);
-    if (difference.inDays >= 1) {
-      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    final localNow = DateTime.now().toLocal();
+    final localTime = time.toLocal();
+    final today = DateTime(localNow.year, localNow.month, localNow.day);
+    final createdDay = DateTime(localTime.year, localTime.month, localTime.day);
+    final diffDays = today.difference(createdDay).inDays;
+
+    // Keep labels consistent with calendar-day group buckets.
+    if (diffDays <= 0) {
+      final difference = localNow.difference(localTime);
+      if (difference.inHours >= 1) {
+        return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+      }
+      final mins = difference.inMinutes < 1 ? 1 : difference.inMinutes;
+      return '$mins min ago';
     }
-    if (difference.inHours >= 1) {
-      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    if (diffDays == 1) return 'Yesterday';
+    if (diffDays <= 7) {
+      return '$diffDays days ago';
     }
-    return '${difference.inMinutes} min ago';
+    return 'Older';
   }
 
   Color _categoryColor(String category) {

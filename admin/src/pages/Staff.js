@@ -132,7 +132,9 @@ export default function Staff() {
     }
   };
 
-  const filtered = users.filter(u => {
+  const staffUsers = users.filter(u => ['Admin', 'Midwife', 'Employee'].includes(u.role) && !u.barangay && !u.civilStatus);
+
+  const filtered = staffUsers.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.staffId && u.staffId.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -145,7 +147,7 @@ export default function Staff() {
   return (
     <Layout 
       title="Staff & Medical Personnel" 
-      subtitle={`Overseeing ${users.length} health center employees and practitioners`}
+      subtitle={`Overseeing ${staffUsers.length} health center employees and practitioners`}
       actions={
         <div style={{ display: 'flex', gap: '10px' }}>
           <button className="icon-button" onClick={fetchUsers} title="Refresh List" style={{ background: 'white', border: '1px solid #E2E8F0' }}>

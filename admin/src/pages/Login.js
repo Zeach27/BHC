@@ -31,6 +31,7 @@ export default function Login() {
     e.preventDefault();
     if (username === "admin" && password === "admin123") {
       localStorage.setItem("isAuthenticated", "true");
+      localStorage.removeItem("userId");
       localStorage.setItem("adminId", "BHW-2026-SA-001");
       localStorage.setItem("adminName", "Super Administrator");
       navigate("/");
